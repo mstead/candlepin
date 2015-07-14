@@ -11,6 +11,7 @@ gem 'buildr-findBugs'
 gem 'pmd'
 gem 'stringex'
 gem 'httpclient'
+gem 'activesupport'
 
 group :development do
   gem 'webrick'
