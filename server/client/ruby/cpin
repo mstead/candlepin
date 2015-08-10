@@ -1,0 +1,92 @@
+#! /usr/bin/env ruby
+
+require 'active_support/all'
+require 'awesome_print'
+require 'json'
+require 'thor'
+require 'uri'
+
+require_relative './candlepin.rb'
+
+
+module Candlepin
+  class CPin < Thor
+    class_option :verbose,
+      :type => :boolean
+
+    class_option :debug,
+      :type => :boolean
+
+    class_option :server_url,
+      :default => "https://localhost:8443/candlepin"
+
+    class_option :server_ca,
+      :default => "/etc/candlepin/certs/candlepin-ca.crt"
+
+    class_option :insecure,
+      :desc => "Disable SSL verifications (defaults to false if --server-url is localhost)",
+      :type => :boolean
+
+    class_option :pretty_print,
+      :desc => "Pretty print JSON responses",
+      :type => :boolean,
+      :default => true
+
+    desc "status", "Return Candlepin status"
+    def status
+      c = get_client
+      json_out(c.get_status.content)
+    end
+
+    #Methods in the no_commands block are not exposed to users
+    no_commands do
+      def verbose?
+        @options["verbose"]
+      end
+
+      def debug?
+        @options["debug"]
+      end
+
+      def get_client(opts = {})
+        begin
+          uri = URI.parse(@options["server_url"])
+        rescue URI::InvalidURIError => e
+          raise Thor::Error.new(e.message)
+        end
+        insecure = @options["insecure"]
+        insecure = true if uri.host == "localhost"
+
+        args = {
+          :host => uri.host,
+          :port => uri.port,
+          :context => uri.path,
+          :insecure => insecure,
+          :ca_path => @options["server_ca"],
+        }
+
+        if opts.empty?
+          client = NoAuthClient.new(args)
+        end
+
+        client
+      end
+
+      def self.source_root
+        File.dirname(__FILE__)
+      end
+
+      def json_out(content)
+        if @options["pretty_print"]
+          # Negative indentation left-justifies the output
+          formatted = content.awesome_inspect(:indent => -2, :index => false)
+          say(formatted)
+        else
+          say(content)
+        end
+      end
+    end
+  end
+end
+
+Candlepin::CPin.start
