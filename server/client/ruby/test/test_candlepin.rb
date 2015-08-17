@@ -5,36 +5,7 @@ require 'webrick/https'
 
 require 'rspec/autorun'
 require '../candlepin'
-
-RSpec.configure do |config|
-  config.expect_with :rspec do |c|
-    c.syntax = :expect
-  end
-end
-
-RSpec::Matchers.define :be_2xx do |expected|
-  match do |res|
-    (200..206).include?(res.status_code)
-  end
-end
-
-RSpec::Matchers.define :be_unauthorized do |expected|
-  match do |res|
-    res.status_code == 401
-  end
-end
-
-RSpec::Matchers.define :be_forbidden do |expected|
-  match do |res|
-    res.status_code == 403
-  end
-end
-
-RSpec::Matchers.define :be_missing do |expected|
-  match do |res|
-    res.status_code == 404
-  end
-end
+require_relative './spec_helper.rb'
 
 module Candlepin
   describe "Candlepin" do
