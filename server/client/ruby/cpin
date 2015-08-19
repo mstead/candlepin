@@ -1,4 +1,4 @@
 #! /usr/bin/env ruby
 require_relative './cpin.rb'
 
-Candlepin::CPin.start
+Candlepin::CPin.new.run(ARGV)

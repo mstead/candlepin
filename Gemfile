@@ -12,7 +12,8 @@ gem 'pmd'
 gem 'stringex'
 gem 'httpclient'
 gem 'activesupport'
-gem 'thor'
+gem 'gli'
+gem 'highline'
 
 group :development do
   gem 'webrick'

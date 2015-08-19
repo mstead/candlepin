@@ -1594,6 +1594,7 @@ module Candlepin
     # * :context:: The servlet context to use. Defaults to 'candlepin'.
     #     If you do not provide a leading slash, one will be prepended.
     # * :use_ssl:: Whether to connect over SSL/TLS. Defaults to true.
+    # * :ca_path:: The path to the CA file
     # * :insecure:: Whether to perform SSL hostname verification and whether to
     #     require a recognized CA. Defaults to <b>true</b> because in testing we
     #     are often dealing with self-signed certificates.
