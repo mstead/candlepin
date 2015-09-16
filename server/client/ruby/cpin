@@ -1,4 +1,82 @@
 #! /usr/bin/env ruby
-require_relative './cpin.rb'
+require 'clamp'
+require 'highline/import'
 
-Candlepin::CPin.new.run(ARGV)
+HighLine.color_scheme = HighLine::SampleColorScheme.new
+$terminal.wrap_at = :auto
+
+require 'hammer_cli/i18n'
+require 'hammer_cli/options/normalizers'
+
+# Create fake command instance to use some global args before we start.
+# Option descriptions are never displayed and thus do not require translation,
+# but they must be duplicated in CandlepinCommand so that the user sees them.
+class PreParser < Clamp::Command
+  option(["-v", "--verbose"], :flag, "be verbose")
+  option(["-d", "--debug"], :flag, "show debugging output")
+  option(["-c", "--config"], "CFG_FILE", "path to custom config file") do |path|
+    File.expand_path(path)
+  end
+  option(["-u", "--username"], "USERNAME", "username to access the remote system")
+  option(["-p", "--password"], "PASSWORD", "password to access the remote system")
+  option(["-s", "--server"], "SERVER", "remote system address")
+end
+
+preparser = PreParser.new(File.basename($0), {})
+begin
+  preparser.parse(ARGV)
+rescue
+end
+
+require 'hammer_cli/settings'
+require 'hammer_cli/exit_codes'
+
+DEFAULT_CONFIG_FILE = File.join(ENV['HOME'], '.cpinrc')
+HammerCLI::Settings.load_from_file(DEFAULT_CONFIG_FILE)
+
+if preparser.config
+  if File.file?(preparser.config)
+    HammerCLI::Settings.load_from_file(preparser.config)
+  else
+    $stderr.puts _("Error: Custom configuration file '%s' does not exist.") % preparser.config
+    exit HammerCLI::EX_CONFIG
+  end
+end
+
+# store username and password in settings
+HammerCLI::Settings.load({
+  :_params => {
+    :username => preparser.username,
+    :password => preparser.password,
+    :host => preparser.server,
+    :verbose => preparser.verbose? || preparser.debug?,
+  },
+  :log_dir => Dir.pwd,
+})
+
+# setup logging
+require 'hammer_cli/logger'
+logger = Logging.logger['Init']
+
+if preparser.verbose? || preparser.debug?
+  root_logger = Logging.logger.root
+  root_logger.appenders = root_logger.appenders << ::Logging.appenders.stderr(:layout => HammerCLI::Logger::COLOR_LAYOUT)
+  root_logger.level = 'debug' if preparser.debug?
+end
+
+# log which config was loaded (now when we have logging)
+HammerCLI::Settings.path_history.each do |path|
+  logger.info("Configuration from the file #{path} has been loaded")
+end
+
+require 'hammer_cli'
+
+begin
+  require_relative './cpin.rb'
+rescue => e
+  handler = HammerCLI::ExceptionHandler.new(:context => {}, :adapter => :base)
+  handler.handle_exception(e)
+  exit HammerCLI::EX_SOFTWARE
+end
+
+exit HammerCLICandlepin::CandlepinCommand.run || HammerCLI::EX_OK

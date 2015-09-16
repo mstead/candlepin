@@ -12,7 +12,7 @@ gem 'pmd'
 gem 'stringex'
 gem 'httpclient'
 gem 'activesupport'
-gem 'gli'
+gem 'hammer_cli'
 gem 'highline'
 
 group :development do
