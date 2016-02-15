@@ -33,6 +33,9 @@ import javax.ws.rs.ext.Provider;
 public class VersionResponseFilter implements ContainerResponseFilter {
     @Override
     public void filter(ContainerRequestContext reqContext, ContainerResponseContext respContext) {
+        respContext.getHeaders().add("Access-Control-Allow-Origin", "*");
+        respContext.getHeaders().add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");
+        respContext.getHeaders().add("Access-Control-Allow-Headers", "Content-Type");
         Map<String, String> map = VersionUtil.getVersionMap();
         respContext.getHeaders().add(VersionUtil.VERSION_HEADER,
             map.get("version") + "-" + map.get("release"));

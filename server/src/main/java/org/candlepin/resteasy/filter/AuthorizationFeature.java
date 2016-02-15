@@ -20,6 +20,8 @@ import org.candlepin.common.auth.SecurityHole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.swagger.jaxrs.listing.ApiListingResource;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 
@@ -62,7 +64,7 @@ public class AuthorizationFeature implements DynamicFeature {
         SecurityHole securityHole = method.getAnnotation(SecurityHole.class);
 
         String name = method.getDeclaringClass().getName() + "." + method.getName();
-        if (securityHole != null) {
+        if (securityHole != null || resourceInfo.getResourceClass().equals(ApiListingResource.class)) {
             log.debug("Not registering authorization filter on {}", name);
             context.register(securityHoleFilter);
         }

@@ -33,6 +33,8 @@ import org.candlepin.model.DeletedConsumerCurator;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 
+import io.swagger.jaxrs.listing.ApiListingResource;
+
 import org.jboss.resteasy.spi.HttpRequest;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.slf4j.Logger;
@@ -108,7 +110,7 @@ public class AuthenticationFilter implements ContainerRequestFilter {
         SecurityHole hole = method.getAnnotation(SecurityHole.class);
         Principal principal = null;
 
-        if (hole != null && hole.anon()) {
+        if (hole != null && hole.anon() || resourceInfo.getResourceClass().equals(ApiListingResource.class)) {
             principal = new NoAuthPrincipal();
         }
         else {
