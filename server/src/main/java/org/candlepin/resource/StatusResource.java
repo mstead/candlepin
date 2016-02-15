@@ -14,19 +14,6 @@
  */
 package org.candlepin.resource;
 
-import org.candlepin.common.auth.SecurityHole;
-import org.candlepin.common.config.Configuration;
-import org.candlepin.common.util.VersionUtil;
-import org.candlepin.config.ConfigProperties;
-import org.candlepin.model.RulesCurator;
-import org.candlepin.model.Status;
-import org.candlepin.policy.js.JsRunnerProvider;
-
-import com.google.inject.Inject;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Map;
 
 import javax.ws.rs.GET;
@@ -34,10 +21,28 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import org.candlepin.common.auth.SecurityHole;
+import org.candlepin.common.config.Configuration;
+import org.candlepin.common.util.VersionUtil;
+import org.candlepin.config.ConfigProperties;
+import org.candlepin.model.RulesCurator;
+import org.candlepin.model.Status;
+import org.candlepin.policy.js.JsRunnerProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.inject.Inject;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+
 /**
  * Status Resource
  */
 @Path("/status")
+@Api(value = "/status", description = "Basic status information about Candlepin")
 public class StatusResource {
     private static Logger log = LoggerFactory.getLogger(StatusResource.class);
 
@@ -95,6 +100,9 @@ public class StatusResource {
     @GET
     @Produces({ MediaType.APPLICATION_JSON})
     @SecurityHole(noAuth = true, anon = true)
+    @ApiOperation(value = "Status", 
+        notes = "Returns status"
+     )
     public Status status() {
         /*
          * Originally this was used to indicate database connectivity being good/bad.

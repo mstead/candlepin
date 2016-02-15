@@ -14,6 +14,13 @@
  */
 package org.candlepin.guice;
 
+import java.util.Properties;
+
+import javax.inject.Provider;
+import javax.validation.MessageInterpolator;
+import javax.validation.Validation;
+import javax.validation.ValidatorFactory;
+
 import org.candlepin.audit.AMQPBusPublisher;
 import org.candlepin.audit.EventSink;
 import org.candlepin.audit.EventSinkImpl;
@@ -126,6 +133,12 @@ import org.candlepin.util.DateSource;
 import org.candlepin.util.DateSourceImpl;
 import org.candlepin.util.ExpiryDateFunction;
 import org.candlepin.util.X509ExtensionUtil;
+import org.hibernate.cfg.beanvalidation.BeanValidationEventListener;
+import org.hibernate.validator.HibernateValidator;
+import org.hibernate.validator.HibernateValidatorConfiguration;
+import org.quartz.JobListener;
+import org.quartz.spi.JobFactory;
+import org.xnap.commons.i18n.I18n;
 
 import com.google.common.base.Function;
 import com.google.inject.AbstractModule;
@@ -135,19 +148,9 @@ import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.google.inject.persist.jpa.JpaPersistModule;
 
-import org.hibernate.cfg.beanvalidation.BeanValidationEventListener;
-import org.hibernate.validator.HibernateValidator;
-import org.hibernate.validator.HibernateValidatorConfiguration;
-import org.quartz.JobListener;
-import org.quartz.spi.JobFactory;
-import org.xnap.commons.i18n.I18n;
-
-import java.util.Properties;
-
-import javax.inject.Provider;
-import javax.validation.MessageInterpolator;
-import javax.validation.Validation;
-import javax.validation.ValidatorFactory;
+import io.swagger.jaxrs.config.BeanConfig;
+import io.swagger.jaxrs.listing.ApiListingResource;
+import io.swagger.jaxrs.listing.SwaggerSerializers;
 
 /**
  * CandlepinModule
@@ -249,6 +252,8 @@ public class CandlepinModule extends AbstractModule {
         configurePinsetter();
 
         configureExporter();
+        
+        configureSwagger();
 
         // Async Jobs
         bind(RefreshPoolsJob.class);
@@ -269,6 +274,7 @@ public class CandlepinModule extends AbstractModule {
         }
 
     }
+
 
     @Provides @Named("ValidationProperties")
     protected Properties getValidationProperties() {
@@ -332,6 +338,19 @@ public class CandlepinModule extends AbstractModule {
         bind(EntitlementCertExporter.class);
     }
 
+    private void configureSwagger() {
+        bind(ApiListingResource.class);
+        bind(SwaggerSerializers.class);
+        
+        BeanConfig beanConfig = new BeanConfig();
+        beanConfig.setVersion("1.0.0");
+        beanConfig.setSchemes(new String[]{"https"});
+        beanConfig.setHost("localhost:8443");
+        beanConfig.setBasePath("/candlepin");
+        beanConfig.setResourcePackage("org.candlepin.resource");
+        beanConfig.setScan(true);
+    }
+    
     private void configureAmqp() {
         // for lazy loading:
         bind(AMQPBusPublisher.class).toProvider(AMQPBusPubProvider.class)
