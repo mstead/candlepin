@@ -17,6 +17,8 @@ package org.candlepin.model;
 
 import org.candlepin.model.Rules.RulesSourceEnum;
 
+import io.swagger.annotations.ApiModelProperty;
+
 import java.util.Date;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -122,6 +124,7 @@ public class Status {
         this.rulesSource = rulesSource;
     }
 
+    @ApiModelProperty(value = "Capabilities that this Candlepin exposes", example="virt_limit, hypervisors_async")
     public String[] getManagerCapabilities() {
         return managerCapabilities;
     }
