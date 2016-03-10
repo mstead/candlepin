@@ -14,28 +14,13 @@
  */
 package org.candlepin.model;
 
-import org.candlepin.audit.Eventful;
-import org.candlepin.common.jackson.HateoasInclude;
-import org.candlepin.util.DateSource;
-
-import com.fasterxml.jackson.annotation.JsonFilter;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.apache.commons.lang.StringUtils;
-import org.hibernate.annotations.BatchSize;
-import org.hibernate.annotations.Cascade;
-import org.hibernate.annotations.Formula;
-import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -58,6 +43,21 @@ import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
+
+import org.apache.commons.lang.StringUtils;
+import org.candlepin.audit.Eventful;
+import org.candlepin.common.jackson.HateoasInclude;
+import org.candlepin.util.DateSource;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Cascade;
+import org.hibernate.annotations.Formula;
+import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
+
+import com.fasterxml.jackson.annotation.JsonFilter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Represents a pool of products eligible to be consumed (entitled).
@@ -1130,6 +1130,31 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
 
         return PoolComplianceType.UNKNOWN;
     }
+    
+    public PoolComplianceType getComplianceType( Map<String, String> productAttributes) {
+
+        if (product != null) {
+            boolean isStacking = productAttributes.containsKey(STACKING_ATTRIBUTE);
+            boolean isMultiEnt = "yes".equalsIgnoreCase(
+                    productAttributes.get(MULTI_ENTITLEMENT_ATTRIBUTE)
+            );
+
+            if (productAttributes.containsKey(INSTANCE_ATTRIBUTE)) {
+                if (isStacking && isMultiEnt) {
+                    return PoolComplianceType.INSTANCE_BASED;
+                }
+            }
+            else {
+                if (isStacking) {
+                    return isMultiEnt ? PoolComplianceType.STACKABLE : PoolComplianceType.UNIQUE_STACKABLE;
+                }
+
+                return isMultiEnt ? PoolComplianceType.MULTI_ENTITLEMENT : PoolComplianceType.STANDARD;
+            }
+        }
+
+        return PoolComplianceType.UNKNOWN;
+    }
 
     public boolean isStacked() {
         return (this.getProduct() != null ? this.getProduct().hasAttribute(STACKING_ATTRIBUTE) : false);
@@ -1268,5 +1293,6 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
     public void setCertificate(SubscriptionsCertificate cert) {
         this.cert = cert;
     }
+
 
 }

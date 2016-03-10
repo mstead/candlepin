@@ -16,11 +16,15 @@ package org.candlepin.resource.util;
 
 import org.candlepin.model.Consumer;
 import org.candlepin.model.Pool;
+import org.candlepin.model.Product;
+import org.candlepin.model.ProductAttribute;
 import org.candlepin.model.Pool.PoolComplianceType;
 import org.candlepin.policy.js.quantity.QuantityRules;
 import org.candlepin.policy.js.quantity.SuggestedQuantity;
 
 import com.google.inject.Inject;
+
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import org.xnap.commons.i18n.I18n;
 
@@ -46,9 +50,9 @@ public class CalculatedAttributesUtil {
         this.quantityRules = quantityRules;
     }
 
-    public Map<String, String> buildCalculatedAttributes(Pool pool, Date date) {
+    public Map<String, String> buildCalculatedAttributes(Pool pool, Date date, Map<String, String> productAttributes) {
         Map<String, String> attrMap = new HashMap<String, String>();
-        PoolComplianceType type = pool.getComplianceType();
+        PoolComplianceType type = pool.getComplianceType(productAttributes);
 
         // TODO: Check that this doesn't break our translation stuff. We may need to have the
         // description strings translated instead.
@@ -59,14 +63,14 @@ public class CalculatedAttributesUtil {
         return attrMap;
     }
 
-    public void setCalculatedAttributes(List<Pool> poolList, Date date) {
+    public void setCalculatedAttributes(List<Pool> poolList, Date date, Map<String, Map<String, String>>  productAttributes) {
         for (Pool pool : poolList) {
             Map<String, String> attrMap = pool.getCalculatedAttributes();
             if (attrMap == null) {
                 attrMap = new HashMap<String, String>();
                 pool.setCalculatedAttributes(attrMap);
             }
-            attrMap.putAll(this.buildCalculatedAttributes(pool, date));
+            attrMap.putAll(this.buildCalculatedAttributes(pool, date,productAttributes.get(pool.getId())));
         }
     }
 
@@ -97,5 +101,14 @@ public class CalculatedAttributesUtil {
             attrMap.put("quantity_increment",
                 String.valueOf(suggested.getIncrement()));
         }
+    }
+
+    public Map<String, String> buildCalculatedAttributes(Pool toReturn, Date activeOnDate) {
+        throw new NotImplementedException();
+    }
+
+    public void setCalculatedAttributes(List<Pool> poolList, Date activeOnDate) {
+        throw new NotImplementedException();
+        
     }
 }

@@ -65,6 +65,8 @@ import org.candlepin.model.Pool;
 import org.candlepin.model.Pool.PoolType;
 import org.candlepin.model.PoolFilterBuilder;
 import org.candlepin.model.Product;
+import org.candlepin.model.ProductAttribute;
+import org.candlepin.model.ProductAttributeCurator;
 import org.candlepin.model.ProductCurator;
 import org.candlepin.model.SourceSubscription;
 import org.candlepin.model.UeberCertificateGenerator;
@@ -107,6 +109,7 @@ import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
 import ch.qos.logback.classic.Level;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.File;
 import java.io.IOException;
@@ -171,6 +174,7 @@ public class OwnerResource {
     private Configuration config;
     private ContentCurator contentCurator;
     private ResolverUtil resolverUtil;
+    private ProductAttributeCurator productAttributeCurator;
 
     @Inject
     public OwnerResource(OwnerCurator ownerCurator,
@@ -198,9 +202,11 @@ public class OwnerResource {
         OwnerServiceAdapter ownerService,
         ProductCurator productCurator,
         Configuration config,
+        ProductAttributeCurator productAttributeCurator,
         ContentCurator contentCurator,
         ResolverUtil resolverUtil) {
 
+        this.productAttributeCurator = productAttributeCurator; 
         this.ownerCurator = ownerCurator;
         this.ownerInfoCurator = ownerInfoCurator;
         this.activationKeyCurator = activationKeyCurator;
@@ -228,6 +234,15 @@ public class OwnerResource {
         this.config = config;
         this.contentCurator = contentCurator;
         this.resolverUtil = resolverUtil;
+    }
+
+    public OwnerResource(OwnerCurator oc, ActivationKeyCurator akc, Object object, I18n i18n2, Object object2,
+            Object object3, Object object4, Object object5, Object object6, Object object7, Object object8,
+            Object object9, Object object10, Object object11, Object object12, Object object13, Object object14,
+            Object object15, Object object16, Object object17, ContentOverrideValidator contentOverrideValidator2,
+            ServiceLevelValidator serviceLevelValidator2, Object object18, Object object19, Object object20,
+            Object object21, Object object22) {
+        throw new NotImplementedException();
     }
 
     /**
@@ -816,7 +831,10 @@ public class OwnerResource {
                 subscriptionId, activeOnDate, true, listAll, poolFilters, pageRequest
         );
         List<Pool> poolList = page.getPageData();
-        calculatedAttributesUtil.setCalculatedAttributes(poolList, activeOnDate);
+        
+        Map<String, Map<String, String>> productAttributes = productAttributeCurator.findProductAttributesForPools2(poolList);
+        calculatedAttributesUtil.setCalculatedAttributes(poolList, activeOnDate, productAttributes);
+        
         calculatedAttributesUtil.setQuantityAttributes(poolList, c, activeOnDate);
 
         // Store the page for the LinkHeaderResponseFilter
