@@ -137,7 +137,7 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
         provisioning.setMultiplier(2L);
         provisioning.addAttribute(new ProductAttribute("instance-multiplier", "4"));
 
-        virtHost.addAttribute(new ProductAttribute(PRODUCT_VIRT_HOST, ""));
+        virtHost.addAttribute(new ProductAttribute(PRODUCT_VIRT_HOST, "a"));
         virtHostPlatform.addAttribute(new ProductAttribute(PRODUCT_VIRT_HOST_PLATFORM, ""));
         virtGuest.addAttribute(new ProductAttribute(PRODUCT_VIRT_GUEST, ""));
         monitoring.addAttribute(new ProductAttribute(PRODUCT_MONITORING, ""));
@@ -199,16 +199,24 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
         Pool pool1 = createPool(o, virtHost, 100L, TestUtil.createDate(2000, 3, 2), TestUtil.createDate(2050, 3, 2));
         poolCurator.create(pool1);
         Pool pool2 = createPool(o, virtHost, 100L, TestUtil.createDate(2000, 3, 2), TestUtil.createDate(2050, 3, 2));
+        pool2.addProvidedProduct(monitoring);
         poolCurator.create(pool2);
         
-        entityManager().clear();
+//        entityManager().clear();
 
         pools.add(pool1);
         pools.add(pool2);
         
-        Map<String, Map<String, String>> result = productAttributeCurator.findProductAttributesForPools2(pools);
+        entityManager().clear();
         
-        System.out.println(result.size());
+//        Map<String, Map<String, String>> result = productAttributeCurator.findProductAttributesForPools2(pools);
+        
+//        poolManager.findProductsByPool
+//        Map<String, Product> result = productCurator.findProductsByPools(pools);
+        Map<String, Set<Product>>  result = productCurator.findProvidedProductsByPools(pools);
+//        poolManager.findProvidedProductsByPools
+//        findProvidedProductsByPools
+//        System.out.println(result.size());
     }
 
     @Test

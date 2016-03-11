@@ -413,9 +413,7 @@ public class Product extends AbstractHibernateObject implements Linkable, Clonea
         Product another = (Product) anObject;
 
         // TODO: Maybe checking the UUID would be better here...?
-        return (this.getOwner() != null ? this.getOwner().equals(another.getOwner()) :
-            another.getOwner() == null) && getId().equals(another.getId()) &&
-            name.equals(another.getName());
+        return uuid.equals(another.getUuid());
     }
 
     @Override
@@ -425,11 +423,13 @@ public class Product extends AbstractHibernateObject implements Linkable, Clonea
 
     @Override
     public int hashCode() {
-        if (id != null) {
-            return id.hashCode() * 31;
+        if (uuid != null) {
+            return uuid.hashCode() * 31;
         }
         return 31;
     }
+    
+    
 
     /**
      * @param content

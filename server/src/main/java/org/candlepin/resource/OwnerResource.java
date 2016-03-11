@@ -62,6 +62,7 @@ import org.candlepin.model.OwnerInfoCurator;
 import org.candlepin.model.PermissionBlueprint;
 import org.candlepin.model.PermissionBlueprintCurator;
 import org.candlepin.model.Pool;
+import org.candlepin.model.PoolCurator;
 import org.candlepin.model.Pool.PoolType;
 import org.candlepin.model.PoolFilterBuilder;
 import org.candlepin.model.Product;
@@ -175,6 +176,7 @@ public class OwnerResource {
     private ContentCurator contentCurator;
     private ResolverUtil resolverUtil;
     private ProductAttributeCurator productAttributeCurator;
+    
 
     @Inject
     public OwnerResource(OwnerCurator ownerCurator,
@@ -832,8 +834,14 @@ public class OwnerResource {
         );
         List<Pool> poolList = page.getPageData();
         
-        Map<String, Map<String, String>> productAttributes = productAttributeCurator.findProductAttributesForPools2(poolList);
-        calculatedAttributesUtil.setCalculatedAttributes(poolList, activeOnDate, productAttributes);
+//        Map<String, Map<String, String>> productAttributes = productAttributeCurator.findProductAttributesForPools2(poolList);
+        /*
+         * Retrieve all provided products and all products with attributes and fill it
+         * 
+         */
+        poolManager.enrichPoolList(poolList);
+        
+        calculatedAttributesUtil.setCalculatedAttributes(poolList, activeOnDate);
         
         calculatedAttributesUtil.setQuantityAttributes(poolList, c, activeOnDate);
 

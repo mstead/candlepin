@@ -734,7 +734,6 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
         );
     }
 
-    @JsonIgnore
     public Set<Product> getProvidedProducts() {
         return this.providedProducts;
     }
@@ -742,7 +741,10 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
     public void addProvidedProduct(Product provided) {
         this.providedProducts.add(provided);
     }
-
+    
+    public void setProvidedProductsForce(Set<Product> providedProducts) {
+        this.providedProducts = providedProducts;
+    }
     public void setProvidedProducts(Set<Product> providedProducts) {
         this.providedProducts.clear();
 

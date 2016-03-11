@@ -14,14 +14,19 @@
  */
 package org.candlepin.model;
 
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.lang.StringUtils;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.exceptions.BadRequestException;
 import org.candlepin.config.ConfigProperties;
-
-import com.google.inject.Inject;
-import com.google.inject.persist.Transactional;
-
-import org.apache.commons.lang.StringUtils;
 import org.hibernate.Criteria;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
@@ -30,11 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import com.google.inject.Inject;
+import com.google.inject.persist.Transactional;
 
 /**
  * interact with Products.
@@ -395,5 +397,38 @@ public class ProductCurator extends AbstractHibernateCurator<Product> {
     public void delete(Product entity) {
         Product toDelete = find(entity.getUuid());
         currentSession().delete(toDelete);
+    }
+
+    public Map<String, Product> findProductsByPools(List<Pool> poolList) {
+        Map<String, Product> productsByPools = new HashMap<String, Product>();
+        
+        List<Object[]> queryResult = getEntityManager().createQuery("SELECT pool.id, pool.product FROM Pool pool"
+                + " JOIN FETCH pool.product.attributes  where pool in :poolList")
+        .setParameter("poolList", poolList).getResultList();
+        
+        for (Object[] objects : queryResult){
+            productsByPools.put((String)objects[0], (Product)objects[1]);
+        }
+        
+        return productsByPools;
+        
+    }
+
+    public Map<String, Set<Product>> findProvidedProductsByPools(List<Pool> poolList) {
+        Map<String, Set<Product>> productsByPools = new HashMap<String, Set<Product>>();
+        
+        List<Object[]> queryResult = getEntityManager().createQuery(
+                "SELECT pool.id, product FROM Pool pool INNER JOIN pool.providedProducts product where pool in :poolList")
+        .setParameter("poolList", poolList).getResultList();
+        
+        for (Object[] objects : queryResult){
+            String poolId = (String)objects[0];
+            if (!productsByPools.containsKey(poolId)) {
+                productsByPools.put(poolId, new HashSet<Product>());
+            }
+            productsByPools.get(poolId).add((Product)objects[1]);
+        }
+        
+        return productsByPools;
     }
 }

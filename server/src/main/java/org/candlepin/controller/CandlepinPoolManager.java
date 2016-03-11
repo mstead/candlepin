@@ -44,8 +44,10 @@ import org.candlepin.model.PoolCurator;
 import org.candlepin.model.PoolFilterBuilder;
 import org.candlepin.model.PoolQuantity;
 import org.candlepin.model.Product;
+import org.candlepin.model.ProductAttribute;
 import org.candlepin.model.ProductContent;
 import org.candlepin.model.ProductCurator;
+import org.candlepin.model.ProvidedProduct;
 import org.candlepin.model.activationkeys.ActivationKey;
 import org.candlepin.model.dto.Subscription;
 import org.candlepin.policy.EntitlementRefusedException;
@@ -2084,5 +2086,17 @@ public class CandlepinPoolManager implements PoolManager {
             }
         }
         return filteredPools;
+    }
+
+    @Override
+    public void enrichPoolList(List<Pool> poolList) {
+        Map<String, Product> products = productCurator.findProductsByPools(poolList);
+        Map<String, Set<Product>> providedProducts = productCurator.findProvidedProductsByPools(poolList);
+        
+        for (Pool p : poolList){
+            p.setProvidedProductsForce(providedProducts.get(p.getId()));
+            p.setProduct(products.get(p.getId()));
+        }
+        
     }
 }
