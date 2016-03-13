@@ -2121,7 +2121,7 @@ public class CandlepinPoolManager implements PoolManager {
         for (Pool p : poolList){
             p.setAttributesForce(poolAttributes.get(p.getId()));
             p.setBranding(poolBranding.get(p.getId()));
-            p.setProduct(productsByUuid.get(p.getId()));
+            p.setProduct(productsByUuid.get(p.getProductUuid()));
             
             p.setProvidedProductsForce(new HashSet<Product>());
             

@@ -34,6 +34,7 @@ import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.GenericGenerator;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * See Attributes interface for documentation.f
@@ -73,7 +74,7 @@ public class ProductAttribute extends AbstractHibernateObject implements Attribu
     }
 
     
-    
+    @JsonIgnore
     public String getProductUuid() {
         return productUuid;
     }
