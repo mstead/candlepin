@@ -810,7 +810,7 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
             branding.put(p, new HashSet<Branding>());
         
         List<Object[]> brandings = getEntityManager()
-                .createNativeQuery("SELECT pool_b.pool_id, b.* as b FROM cp_pool_branding pool_b inner join cp_branding b on pool_b.branding_id = b.id WHERE pool_b.pool_id in :poolIds",
+                .createNativeQuery("SELECT pool_b.pool_id, b.* FROM cp_pool_branding pool_b inner join cp_branding b on pool_b.branding_id = b.id WHERE pool_b.pool_id in :poolIds",
                         "branding_by_pool_id")
                 .setParameter("poolIds", poolIds).getResultList();
         
