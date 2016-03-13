@@ -14,15 +14,21 @@
  */
 package org.candlepin.model;
 
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.lang.StringUtils;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.exceptions.BadRequestException;
 import org.candlepin.config.ConfigProperties;
-
-import com.google.inject.Inject;
-import com.google.inject.persist.Transactional;
-
-import org.apache.commons.lang.StringUtils;
 import org.hibernate.Criteria;
+import org.hibernate.Hibernate;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.sql.JoinType;
@@ -30,11 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import com.google.inject.Inject;
+import com.google.inject.persist.Transactional;
 
 /**
  * interact with Products.
@@ -147,7 +150,107 @@ public class ProductCurator extends AbstractHibernateCurator<Product> {
                 .add(Restrictions.in("id", ids))
         );
     }
+    
 
+    /**
+     * Pulls Pool products and batch-fetch it's attributes
+     * @param poolIds
+     * @return
+     */
+    public Map<String, Product> lookupPoolProductsByUUIDs(Set<String> uuids) {
+        if (uuids.contains(null))
+            throw new IllegalArgumentException("List of uuids contains null!");
+        
+        Map<String, Product> productsByUuid = new HashMap<String, Product>();
+        
+        if (uuids.isEmpty())
+            return productsByUuid;
+        
+        
+        List<Product> queryResult = 
+                getEntityManager().
+                createQuery("SELECT p FROM Product p WHERE p.uuid in :uuids", 
+                        Product.class)
+                .setParameter("uuids", uuids).getResultList();
+
+        List<ProductAttribute> productAttributes = 
+                getEntityManager().
+                createQuery("SELECT p FROM ProductAttribute p WHERE p.productUuid in :uuids", 
+                        ProductAttribute.class)
+                .setParameter("uuids", uuids).getResultList();
+
+        
+        
+        Map<String, Set<ProductAttribute>> attributesByProductUuid = new HashMap<String, Set<ProductAttribute>>();
+        
+        for (ProductAttribute pa : productAttributes){
+            if (!attributesByProductUuid.containsKey(pa.getProductUuid())){
+                attributesByProductUuid.put(pa.getProductUuid(), new HashSet<ProductAttribute>());
+            }
+            attributesByProductUuid.get(pa.getProductUuid()).add(pa);
+        }
+        
+        for (Product p : queryResult){
+            productsByUuid.put(p.getUuid(), p);
+            p.setAttributesForce(attributesByProductUuid.get(p.getUuid()));
+            
+            for(ProductAttribute pa : p.getAttributes()){
+                pa.setProduct(p);
+            }
+        }
+        
+        return productsByUuid;
+    }
+
+    public Map<String, Set<String>> lookupProvidedProdcutsByPoolIds(Set<String> poolIds) {
+        if (poolIds.contains(null))
+            throw new IllegalArgumentException("List of uuids contains null!");
+        
+        Map<String, Set<String>> providedProductsByPoolIds = new HashMap<String, Set<String>>();
+       
+        for (String pool : poolIds)
+            providedProductsByPoolIds.put(pool, new HashSet<String>());
+        
+        List<Object[]> queryResult = 
+                getEntityManager().
+                createNativeQuery("SELECT pool_id, product_uuid FROM cpo_pool_provided_products where pool_id in :poolIds")
+                .setParameter("poolIds", poolIds).getResultList();
+
+        for (Object[] tuple : queryResult){
+            String poolId = (String)tuple[0];
+            String productUuid = (String)tuple[1];
+            providedProductsByPoolIds.get(poolId).add(productUuid);
+        }
+   
+        return providedProductsByPoolIds;
+    }
+    
+
+    public Map<String, Set<String>> lookupDerivedProvidedProdcutsByPoolIds(Set<String> poolIds) {
+        if (poolIds.contains(null))
+            throw new IllegalArgumentException("List of uuids contains null!");
+        
+        Map<String, Set<String>> providedProductsByPoolIds = new HashMap<String, Set<String>>();
+        
+        for (String pool : poolIds)
+            providedProductsByPoolIds.put(pool, new HashSet<String>());
+        
+        List<Object[]> queryResult = 
+                getEntityManager().
+                createNativeQuery("SELECT pool_id, product_uuid FROM cpo_pool_derived_products where pool_id in :poolIds")
+                .setParameter("poolIds", poolIds).getResultList();
+
+        
+        for (Object[] tuple : queryResult){
+            String poolId = (String)tuple[0];
+            String productUuid = (String)tuple[1];
+            providedProductsByPoolIds.get(poolId).add(productUuid);
+        }
+   
+        return providedProductsByPoolIds;
+    }
+    
+    
     /**
      * List all products with a Red Hat ID matching any of the IDs provided. Note that this method
      * may return multiple products for a given ID if multiple owners have a product with the same
@@ -396,4 +499,7 @@ public class ProductCurator extends AbstractHibernateCurator<Product> {
         Product toDelete = find(entity.getUuid());
         currentSession().delete(toDelete);
     }
+
+   
+    
 }

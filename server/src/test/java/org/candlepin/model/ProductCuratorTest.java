@@ -115,6 +115,16 @@ public class ProductCuratorTest extends DatabaseTestFixture {
         pool.setDerivedProvidedProducts(derivedProvidedProducts);
         poolCurator.create(pool);
     }
+    
+    @Test
+    public void findByUuids(){
+        entityManager().clear();
+        Set<String> uuids = new HashSet<String>();
+        uuids.add(derivedProduct.getUuid());
+        uuids.add(product.getUuid());
+        productCurator.lookupPoolProductsByUUIDs(uuids);
+    }
+    
 
     @Test
     @SuppressWarnings("unchecked")

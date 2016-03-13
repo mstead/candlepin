@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -241,6 +242,9 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
     @NotNull
     private Date endDate;
 
+    @Column(insertable=false, updatable=false, name="product_uuid")
+    private String productUuid;
+    
     @ManyToOne
     @JoinColumn(name = "product_uuid", nullable = false)
     @NotNull
@@ -276,6 +280,7 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
     @Transient
     private Set<ProvidedProduct> providedProductDtos = null;
 
+ 
     /**
      * Set of provided product DTOs used for compatibility with the pre-2.0 JSON.
      * Used when serializing a pool to JSON over the API, and when importing a manifest.
@@ -395,6 +400,15 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
      */
     public void setId(String id) {
         this.id = id;
+    }
+
+    
+    public String getProductUuid() {
+        return productUuid;
+    }
+
+    public void setProductUuid(String productUuid) {
+        this.productUuid = productUuid;
     }
 
     /**
@@ -572,6 +586,11 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
             this.attributes.addAll(attributes);
         }
     }
+    
+    public void setAttributesForce(Set<PoolAttribute> attributes) {
+        this.attributes = attributes;
+    }
+
 
     public void addAttribute(PoolAttribute attrib) {
         attrib.setPool(this);
@@ -1017,7 +1036,9 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
             this.derivedProvidedProducts.addAll(derivedProvidedProducts);
         }
     }
-
+    public void setDerivedProvidedProductsForce(Set<Product> derivedProvidedProducts) {
+       this.derivedProvidedProducts=derivedProvidedProducts;
+    }
     /*
      * Always exported as a DTO for API/import backward compatibility.
      */
@@ -1267,6 +1288,10 @@ public class Pool extends AbstractHibernateObject implements Persisted, Owned, N
 
     public void setCertificate(SubscriptionsCertificate cert) {
         this.cert = cert;
+    }
+
+    public void setProvidedProductsForce(HashSet<Product> providedProducts) {
+        this.providedProducts = providedProducts;
     }
 
 }

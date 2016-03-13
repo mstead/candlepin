@@ -374,10 +374,13 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
 
     @Test
     public void testListAllForConsumerIncludesWarnings() {
+        entityManager().clear();
         Page<List<Pool>> results =
             poolManager.listAvailableEntitlementPools(parentSystem, null,
                 parentSystem.getOwner(), null, null, null, true, true,
                 new PoolFilterBuilder(), new PageRequest());
+        
+        poolManager.enrichWithProductsData(results.getPageData());
         assertEquals(4, results.getPageData().size());
 
         Pool pool = createPool(o, socketLimitedProduct, 100L,

@@ -15,15 +15,10 @@
 
 package org.candlepin.model;
 
-import com.fasterxml.jackson.annotation.JsonFilter;
-
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.hibernate.annotations.GenericGenerator;
-
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
@@ -32,6 +27,13 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlTransient;
+
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.GenericGenerator;
+
+import com.fasterxml.jackson.annotation.JsonFilter;
 
 /**
  * See Attributes interface for documentation.f
@@ -57,14 +59,32 @@ public class ProductAttribute extends AbstractHibernateObject implements Attribu
     @Size(max = 255)
     protected String value;
 
-    @ManyToOne
+    @Column(insertable=false, updatable=false,name = "product_uuid")
+    private String productUuid;
+    
+    @ManyToOne(fetch=FetchType.LAZY)
     @JoinColumn(name = "product_uuid", nullable = false)
     @NotNull
+    @BatchSize(size=2)
     private Product product;
 
 
     public ProductAttribute() {
     }
+
+    
+    
+    public String getProductUuid() {
+        return productUuid;
+    }
+
+
+
+    public void setProductUuid(String productUuid) {
+        this.productUuid = productUuid;
+    }
+
+
 
     public ProductAttribute(String name, String val) {
         this.name = name;

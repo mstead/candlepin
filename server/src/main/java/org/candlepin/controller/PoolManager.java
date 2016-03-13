@@ -302,4 +302,6 @@ public interface PoolManager {
      *  a list of known master pools
      */
     List<Pool> listMasterPools();
+
+    void enrichWithProductsData(List<Pool> poolList);
 }

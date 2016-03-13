@@ -59,6 +59,9 @@ public class PoolAttribute extends AbstractHibernateObject implements Attribute 
     @Size(max = 255)
     protected String value;
 
+    @Column(name="pool_id", insertable=false, updatable=false)
+    private String poolId;
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(nullable = false)
     @NotNull
@@ -70,6 +73,16 @@ public class PoolAttribute extends AbstractHibernateObject implements Attribute 
     public PoolAttribute(String name, String val) {
         this.name = name;
         this.value = val;
+    }
+
+    
+    
+    public String getPoolId() {
+        return poolId;
+    }
+
+    public void setPoolId(String poolId) {
+        this.poolId = poolId;
     }
 
     public String getId() {

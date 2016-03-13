@@ -815,7 +815,11 @@ public class OwnerResource {
         Page<List<Pool>> page = poolManager.listAvailableEntitlementPools(c, key, owner, productId,
                 subscriptionId, activeOnDate, true, listAll, poolFilters, pageRequest
         );
+        
+        
         List<Pool> poolList = page.getPageData();
+        poolManager.enrichWithProductsData(poolList);
+        
         calculatedAttributesUtil.setCalculatedAttributes(poolList, activeOnDate);
         calculatedAttributesUtil.setQuantityAttributes(poolList, c, activeOnDate);
 

@@ -14,6 +14,20 @@
  */
 package org.candlepin.controller;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.lang.StringUtils;
 import org.candlepin.audit.Event;
 import org.candlepin.audit.Event.Target;
 import org.candlepin.audit.Event.Type;
@@ -38,14 +52,15 @@ import org.candlepin.model.Environment;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
 import org.candlepin.model.Pool;
-import org.candlepin.model.SourceSubscription;
 import org.candlepin.model.Pool.PoolType;
+import org.candlepin.model.PoolAttribute;
 import org.candlepin.model.PoolCurator;
 import org.candlepin.model.PoolFilterBuilder;
 import org.candlepin.model.PoolQuantity;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductContent;
 import org.candlepin.model.ProductCurator;
+import org.candlepin.model.SourceSubscription;
 import org.candlepin.model.activationkeys.ActivationKey;
 import org.candlepin.model.dto.Subscription;
 import org.candlepin.policy.EntitlementRefusedException;
@@ -66,28 +81,13 @@ import org.candlepin.sync.SubscriptionReconciler;
 import org.candlepin.util.CertificateSizeException;
 import org.candlepin.util.Util;
 import org.candlepin.version.CertVersionConflictException;
-
-import com.google.common.collect.Sets;
-import com.google.inject.Inject;
-import com.google.inject.persist.Transactional;
-
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.Sets;
+import com.google.inject.Inject;
+import com.google.inject.persist.Transactional;
 
 /**
  * PoolManager
@@ -1882,6 +1882,7 @@ public class CandlepinPoolManager implements PoolManager {
         // request still could fail.
         List<Pool> resultingPools = page.getPageData();
         if (consumer != null) {
+            enrichWithProductsData(resultingPools);
             resultingPools = enforcer.filterPools(
                 consumer, resultingPools, includeWarnings);
         }
@@ -2084,5 +2085,55 @@ public class CandlepinPoolManager implements PoolManager {
             }
         }
         return filteredPools;
+    }
+
+    /**
+     * Enriches the poolList with:
+     *   - pool.attributes
+     *   - providedProducts and their attributes
+     *   - product.attributes
+     *   
+     *   
+     */
+    @Override
+    public void enrichWithProductsData(List<Pool> poolList) {
+        Set<String> poolIds = new HashSet<String>();
+        Set<String> poolProductUuids = new HashSet<String>();
+        
+        for (Pool p : poolList) {
+            poolIds.add(p.getId());
+            poolProductUuids.add(p.getProductUuid());
+        }
+        
+        Map<String, Set<PoolAttribute>> poolAttributes = poolCurator.lookupPoolAttributesByPools(poolIds);
+        Map<String, Set<Branding>> poolBranding = poolCurator.lookupPoolBrandingByPools(poolIds);
+        Map<String, Set<String>> providedProductsByPool = productCurator.lookupProvidedProdcutsByPoolIds(poolIds);
+        Map<String, Set<String>> derivedProductsByPool = productCurator.lookupDerivedProvidedProdcutsByPoolIds(poolIds);
+        
+        for (Set<String> prods : providedProductsByPool.values())
+            poolProductUuids.addAll(prods);
+        
+        for (Set<String> prods : derivedProductsByPool.values())
+            poolProductUuids.addAll(prods);
+        
+        Map<String, Product>  productsByUuid = productCurator.lookupPoolProductsByUUIDs(poolProductUuids);
+                
+        for (Pool p : poolList){
+            p.setAttributesForce(poolAttributes.get(p.getId()));
+            p.setBranding(poolBranding.get(p.getId()));
+            p.setProduct(productsByUuid.get(p.getId()));
+            
+            p.setProvidedProductsForce(new HashSet<Product>());
+            
+            for (String providedProductUuid : providedProductsByPool.get(p.getId())) {
+                p.addProvidedProduct(productsByUuid.get(providedProductUuid));   
+            }   
+            
+            p.setDerivedProvidedProductsForce(new HashSet<Product>());
+            
+            for (String providedProductUuid : derivedProductsByPool.get(p.getId())) {
+                p.getDerivedProvidedProducts().add(productsByUuid.get(providedProductUuid));   
+            }   
+        }
     }
 }

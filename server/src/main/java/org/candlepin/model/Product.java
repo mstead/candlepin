@@ -15,7 +15,7 @@
 package org.candlepin.model;
 
 import org.candlepin.service.UniqueIdGenerator;
-
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.LazyCollection;
@@ -78,6 +78,7 @@ public class Product extends AbstractHibernateObject implements Linkable, Clonea
     @NotNull
     private String name;
 
+    //TODO should this be really eager?
     @ManyToOne
     @JoinColumn(nullable = false)
     @NotNull
@@ -95,6 +96,7 @@ public class Product extends AbstractHibernateObject implements Linkable, Clonea
     @OneToMany(mappedBy = "product")
     @Cascade({ org.hibernate.annotations.CascadeType.ALL,
         org.hibernate.annotations.CascadeType.DELETE_ORPHAN })
+    @BatchSize(size=128)
     private Set<ProductAttribute> attributes;
 
     @ElementCollection
@@ -307,6 +309,11 @@ public class Product extends AbstractHibernateObject implements Linkable, Clonea
         }
     }
 
+
+    public void setAttributesForce(Set<ProductAttribute> attributes) {
+        this.attributes = attributes;
+    }
+    
     public void setAttribute(String key, String value) {
         ProductAttribute existing = getAttribute(key);
         if (existing != null) {

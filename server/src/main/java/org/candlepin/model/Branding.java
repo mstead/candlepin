@@ -19,9 +19,13 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.Column;
+import javax.persistence.ColumnResult;
 import javax.persistence.Entity;
+import javax.persistence.EntityResult;
+import javax.persistence.FieldResult;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.SqlResultSetMapping;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -39,6 +43,10 @@ import javax.xml.bind.annotation.XmlTransient;
  */
 @Entity
 @Table(name = "cp_branding")
+@SqlResultSetMapping(name="branding_by_pool_id", 
+               columns=@ColumnResult(name="pool_id"), 
+               entities=@EntityResult(entityClass=Branding.class)
+        )
 public class Branding extends AbstractHibernateObject {
 
     @Id

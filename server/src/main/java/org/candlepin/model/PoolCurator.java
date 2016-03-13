@@ -43,9 +43,11 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -775,5 +777,51 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
         filters.applyTo(criteria);
         criteria.setMaxResults(1).uniqueResult();
         return (Pool) criteria.uniqueResult();
+    }
+
+    public Map<String, Set<PoolAttribute>> lookupPoolAttributesByPools(Set<String> poolIds) {
+        if (poolIds.contains(null))
+            throw new IllegalArgumentException("List of uuids contains null!");
+        
+
+        Map<String, Set<PoolAttribute>> providedProductsByPoolIds = new HashMap<String, Set<PoolAttribute>>();
+        for (String p : poolIds)
+            providedProductsByPoolIds.put(p, new HashSet<PoolAttribute>());
+        
+        List<PoolAttribute> productAttributes = 
+                getEntityManager().
+                createQuery("SELECT p FROM PoolAttribute p WHERE p.poolId in :poolIds", 
+                        PoolAttribute.class)
+                .setParameter("poolIds", poolIds).getResultList();
+        
+        for (PoolAttribute attr : productAttributes){            
+            providedProductsByPoolIds.get(attr.getPoolId()).add(attr);
+        }
+   
+        return providedProductsByPoolIds;
+    }
+
+    public Map<String, Set<Branding>> lookupPoolBrandingByPools(Set<String> poolIds) {
+        if (poolIds.contains(null))
+            throw new IllegalArgumentException("List of uuids contains null!");
+
+        Map<String, Set<Branding>> branding = new HashMap<String, Set<Branding>>();
+        for (String p : poolIds)
+            branding.put(p, new HashSet<Branding>());
+        
+        List<Object[]> brandings = getEntityManager()
+                .createNativeQuery("SELECT pool_b.pool_id, b.* as b FROM cp_pool_branding pool_b inner join cp_branding b on pool_b.branding_id = b.id WHERE pool_b.pool_id in :poolIds",
+                        "branding_by_pool_id")
+                .setParameter("poolIds", poolIds).getResultList();
+        
+        for (Object[] poolBranding : brandings) {
+            Branding b = (Branding)poolBranding[0];
+            String poolid = (String)poolBranding[1];
+            
+            branding.get(poolid).add(b);
+        }
+
+        return branding;
+
     }
 }
