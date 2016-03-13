@@ -166,38 +166,16 @@ public class ProductCurator extends AbstractHibernateCurator<Product> {
         if (uuids.isEmpty())
             return productsByUuid;
         
-        
-        List<Product> queryResult = 
+         List<Product> queryResult = 
                 getEntityManager().
-                createQuery("SELECT p FROM Product p WHERE p.uuid in :uuids", 
+                createQuery("SELECT p FROM Product p  JOIN FETCH p.attributes "+
+                " JOIN FETCH p.owner"
+                        + " WHERE p.uuid in :uuids", 
                         Product.class)
                 .setParameter("uuids", uuids).getResultList();
-
-        List<ProductAttribute> productAttributes = 
-                getEntityManager().
-                createQuery("SELECT p FROM ProductAttribute p WHERE p.productUuid in :uuids", 
-                        ProductAttribute.class)
-                .setParameter("uuids", uuids).getResultList();
-
         
-        
-        Map<String, Set<ProductAttribute>> attributesByProductUuid = new HashMap<String, Set<ProductAttribute>>();
-        
-        for (ProductAttribute pa : productAttributes){
-            if (!attributesByProductUuid.containsKey(pa.getProductUuid())){
-                attributesByProductUuid.put(pa.getProductUuid(), new HashSet<ProductAttribute>());
-            }
-            attributesByProductUuid.get(pa.getProductUuid()).add(pa);
-        }
-        
-        for (Product p : queryResult){
+        for (Product p : queryResult)
             productsByUuid.put(p.getUuid(), p);
-            p.setAttributesForce(attributesByProductUuid.get(p.getUuid()));
-            
-            for(ProductAttribute pa : p.getAttributes()){
-                pa.setProduct(p);
-            }
-        }
         
         return productsByUuid;
     }
