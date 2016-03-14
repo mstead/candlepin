@@ -105,12 +105,22 @@ public class RulesCurator extends AbstractHibernateCurator<Rules> {
         }
         return dbRules;
     }
+    
+    private Date updatedFromDb = null;
 
     public Date getUpdatedFromDB() {
-        return (Date) this.currentSession().createCriteria(Rules.class)
+        // A test if the getUpdatedFromDB() method does have significant
+        // impact on performance of Candlepin. So just caching it the first time 
+        // its used for now
+        if (updatedFromDb != null)
+            return updatedFromDb;
+        
+        updatedFromDb = (Date) this.currentSession().createCriteria(Rules.class)
             .setProjection(Projections.projectionList()
                 .add(Projections.max("updated")))
                 .uniqueResult();
+        
+        return updatedFromDb;
     }
 
     /**
