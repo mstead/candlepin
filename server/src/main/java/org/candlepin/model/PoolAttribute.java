@@ -15,6 +15,7 @@
 package org.candlepin.model;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.hibernate.annotations.GenericGenerator;
@@ -60,6 +61,7 @@ public class PoolAttribute extends AbstractHibernateObject implements Attribute 
     protected String value;
 
     @Column(name="pool_id", insertable=false, updatable=false)
+    @JsonIgnore
     private String poolId;
     
     @ManyToOne(fetch = FetchType.LAZY)

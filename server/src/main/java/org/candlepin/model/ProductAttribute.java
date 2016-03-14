@@ -59,7 +59,8 @@ public class ProductAttribute extends AbstractHibernateObject implements Attribu
     @Column
     @Size(max = 255)
     protected String value;
-
+    
+    @JsonIgnore
     @Column(insertable=false, updatable=false,name = "product_uuid")
     private String productUuid;
     
@@ -74,7 +75,7 @@ public class ProductAttribute extends AbstractHibernateObject implements Attribu
     }
 
     
-    @JsonIgnore
+//    @JsonIgnore
     public String getProductUuid() {
         return productUuid;
     }
