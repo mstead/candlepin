@@ -1882,7 +1882,6 @@ public class CandlepinPoolManager implements PoolManager {
         // request still could fail.
         List<Pool> resultingPools = page.getPageData();
         if (consumer != null) {
-            enrichWithProductsData(resultingPools);
             resultingPools = enforcer.filterPools(
                 consumer, resultingPools, includeWarnings);
         }
