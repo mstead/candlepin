@@ -67,7 +67,6 @@ public class ProductAttribute extends AbstractHibernateObject implements Attribu
     @ManyToOne(fetch=FetchType.LAZY)
     @JoinColumn(name = "product_uuid", nullable = false)
     @NotNull
-    @BatchSize(size=2)
     private Product product;
 
 
@@ -75,7 +74,6 @@ public class ProductAttribute extends AbstractHibernateObject implements Attribu
     }
 
     
-//    @JsonIgnore
     public String getProductUuid() {
         return productUuid;
     }

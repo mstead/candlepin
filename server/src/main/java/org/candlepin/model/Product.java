@@ -96,7 +96,6 @@ public class Product extends AbstractHibernateObject implements Linkable, Clonea
     @OneToMany(mappedBy = "product")
     @Cascade({ org.hibernate.annotations.CascadeType.ALL,
         org.hibernate.annotations.CascadeType.DELETE_ORPHAN })
-    @BatchSize(size=128)
     private Set<ProductAttribute> attributes;
 
     @ElementCollection
