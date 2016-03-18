@@ -125,4 +125,10 @@ public class NoopEventSinkImpl implements EventSink {
         return null;
     }
 
+    @Override
+    public void registerListener(EventListener eventListener) {
+        log.debug("registerListener: eventListener:" + eventListener );
+        
+    }
+
 }

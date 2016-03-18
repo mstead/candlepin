@@ -91,7 +91,7 @@ public class CandlepinContextListener extends GuiceResteasyBootstrapServletConte
     private ServletContext servletContext;
 
     private AMQPBusPublisher busPublisher;
-    private AMQPBusPubProvider busProvider;
+    private QpidSessionPoolProvider busProvider;
 
     private Injector injector;
 
@@ -152,7 +152,7 @@ public class CandlepinContextListener extends GuiceResteasyBootstrapServletConte
         if (config.getBoolean(ConfigProperties.AMQP_INTEGRATION_ENABLED)) {
             Util.closeSafely(injector.getInstance(AMQPBusPublisher.class),
                 "AMQPBusPublisher");
-            Util.closeSafely(injector.getInstance(AMQPBusPubProvider.class),
+            Util.closeSafely(injector.getInstance(QpidSessionPoolProvider.class),
                 "AMQPBusPubProvider");
         }
     }

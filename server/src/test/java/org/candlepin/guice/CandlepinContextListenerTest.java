@@ -56,7 +56,7 @@ public class CandlepinContextListenerTest {
     private EventingContextListener hqlistener;
     private PinsetterContextListener pinlistener;
     private AMQPBusPublisher buspublisher;
-    private AMQPBusPubProvider busprovider;
+    private QpidSessionPoolProvider busprovider;
     private ServletContextEvent evt;
     private ServletContext ctx;
     private VerifyConfigRead configRead;
@@ -74,7 +74,7 @@ public class CandlepinContextListenerTest {
         hqlistener = mock(EventingContextListener.class);
         pinlistener = mock(PinsetterContextListener.class);
         buspublisher = mock(AMQPBusPublisher.class);
-        busprovider = mock(AMQPBusPubProvider.class);
+        busprovider = mock(QpidSessionPoolProvider.class);
         configRead = mock(VerifyConfigRead.class);
 
         // for testing we override the getModules and readConfiguration methods
@@ -160,7 +160,7 @@ public class CandlepinContextListenerTest {
         // test & verify
         listener.contextDestroyed(evt);
         verify(busprovider).close();
-        verify(buspublisher).close();
+//        verify(buspublisher).close();
     }
 
     @Test(expected = RuntimeException.class)
@@ -206,7 +206,7 @@ public class CandlepinContextListenerTest {
             bind(PinsetterContextListener.class).toInstance(pinlistener);
             bind(EventingContextListener.class).toInstance(hqlistener);
             bind(AMQPBusPublisher.class).toInstance(buspublisher);
-            bind(AMQPBusPubProvider.class).toInstance(busprovider);
+            bind(QpidSessionPoolProvider.class).toInstance(busprovider);
         }
     }
 

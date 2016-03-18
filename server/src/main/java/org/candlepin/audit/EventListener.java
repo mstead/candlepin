@@ -19,4 +19,6 @@ package org.candlepin.audit;
  */
 public interface EventListener {
     void onEvent(Event e);
+    void commit();
+    void rollback();
 }

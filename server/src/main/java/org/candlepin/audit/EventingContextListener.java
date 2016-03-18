@@ -31,7 +31,7 @@ import com.google.inject.Injector;
 public class EventingContextListener {
     private static  Logger log = LoggerFactory.getLogger(EventingContextListener.class);
 
-//    private EventSource eventSource;
+    private EventSink eventSink;
 
     public void contextDestroyed() {
     }
@@ -41,21 +41,19 @@ public class EventingContextListener {
         org.candlepin.common.config.Configuration candlepinConfig =
             injector.getInstance(org.candlepin.common.config.Configuration.class);
 
-      
-
         List<String> listeners = getEventListeners(candlepinConfig);
-//
-//        eventSource = injector.getInstance(EventSource.class);
-//        for (int i = 0; i < listeners.size(); i++) {
-//            try {
-//                Class<?> clazz = this.getClass().getClassLoader().loadClass(
-//                    listeners.get(i));
-//                eventSource.registerListener((EventListener) injector.getInstance(clazz));
-//            }
-//            catch (Exception e) {
-//                log.warn("Unable to register listener " + listeners.get(i), e);
-//            }
-//        }
+
+        eventSink = injector.getInstance(EventSink.class);
+        for (int i = 0; i < listeners.size(); i++) {
+            try {
+                Class<?> clazz = this.getClass().getClassLoader().loadClass(
+                    listeners.get(i));
+                eventSink.registerListener((EventListener) injector.getInstance(clazz));
+            }
+            catch (Exception e) {
+                log.warn("Unable to register listener " + listeners.get(i), e);
+            }
+        }
 
         // Initialize the Event sink AFTER the internal server has been
         // created and started.

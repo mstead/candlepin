@@ -16,6 +16,7 @@ package org.candlepin.guice;
 
 import org.candlepin.audit.AMQPBusPublisher;
 import org.candlepin.audit.Event;
+import org.candlepin.audit.QpidSessionPool;
 import org.candlepin.audit.Event.Target;
 import org.candlepin.audit.Event.Type;
 import org.candlepin.common.config.Configuration;
@@ -35,6 +36,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import javax.jms.JMSException;
+import javax.jms.ServerSessionPool;
 import javax.jms.Session;
 import javax.jms.Topic;
 import javax.jms.TopicConnection;
@@ -47,13 +49,14 @@ import javax.naming.NamingException;
 /**
  * A provider that creates and configures AMQPBusPublishers.
  */
-public class AMQPBusPubProvider implements Provider<AMQPBusPublisher> {
+public class QpidSessionPoolProvider implements Provider<QpidSessionPool> {
 
     private Context ctx;
     private TopicConnection connection;
-    private TopicSession session;
-    private static org.slf4j.Logger log = LoggerFactory.getLogger(AMQPBusPubProvider.class);
-    private ObjectMapper mapper;
+//    private TopicSession session;
+    
+    private static org.slf4j.Logger log = LoggerFactory.getLogger(QpidSessionPoolProvider.class);
+
 
     // external events may not have the same name as the internal events
     private Map<String, String> targetToEvent = new HashMap<String, String>() {
@@ -65,9 +68,8 @@ public class AMQPBusPubProvider implements Provider<AMQPBusPublisher> {
     };
 
     @Inject
-    public AMQPBusPubProvider(Configuration config, ObjectMapper omapper) {
+    public QpidSessionPoolProvider(Configuration config) {
         try {
-            mapper = omapper;
             log.debug("building initialcontext");
             ctx = new InitialContext(buildConfigurationProperties(config));
             init(config);
@@ -83,10 +85,7 @@ public class AMQPBusPubProvider implements Provider<AMQPBusPublisher> {
         log.debug("creating connection");
         connection = (TopicConnection) connectionFactory.createConnection();
         connection.start();
-
-        log.debug("creating topic session");
-        session = connection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
-        log.info("AMQP session created successfully...");
+        log.info("AMQP connection created successfully...");
     }
 
     private AMQConnectionFactory createConnectionFactory(Context ctx, Configuration config)
@@ -154,15 +153,16 @@ public class AMQPBusPubProvider implements Provider<AMQPBusPublisher> {
     }
 
     @Override
-    public AMQPBusPublisher get() {
+    public QpidSessionPool get() {
         try {
             // build a map of publishers for each of combination of
             // target.type. So there will be one for owner.created,
             // another for pool.deleted, etc.
 
-            Map<Target, Map<Type, TopicPublisher>> pm = Util.newMap();
-            buildAllTopicPublishers(pm);
-            return new AMQPBusPublisher(session, pm, mapper);
+//            Map<Target, Map<Type, TopicPublisher>> pm = Util.newMap();
+//            buildAllTopicPublishers(pm);
+//            return new AMQPBusPublisher(session, pm, mapper);
+            return new QpidSessionPool(connection,ctx);
         }
         catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -170,34 +170,12 @@ public class AMQPBusPubProvider implements Provider<AMQPBusPublisher> {
     }
 
     public void close() {
-        Util.closeSafely(this.session, "AMQPSession");
+//        Util.closeSafely(this.session, "AMQPSession");
         Util.closeSafely(this.connection, "AMQPConnection");
         Util.closeSafely(this.ctx, "AMQPContext");
     }
 
-    protected final void buildAllTopicPublishers(Map<Target, Map<Type, TopicPublisher>> pm)
-        throws JMSException, NamingException {
-
-        for (Target target : Target.values()) {
-            Map<Type, TopicPublisher> typeToTpMap = Util.newMap();
-            for (Type type : Type.values()) {
-                storeTopicProducer(type, target, typeToTpMap);
-            }
-            pm.put(target, typeToTpMap);
-        }
-    }
-
-    protected final void storeTopicProducer(Type type, Target target,
-        Map<Type, TopicPublisher> map) throws JMSException, NamingException {
-
-        String name = getTopicName(type, target);
-        Topic topic = (Topic) this.ctx.lookup(name);
-        log.debug("Creating publisher for topic: {}", name);
-        TopicPublisher tp = this.session.createPublisher(topic);
-        map.put(type, tp);
-    }
-
-    private String getTopicName(Type type, Target target) {
+    public static String getTopicName(Type type, Target target) {
         return target.toString().toLowerCase() +
             Util.capitalize(type.toString().toLowerCase());
     }

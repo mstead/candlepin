@@ -14,12 +14,16 @@
  */
 package org.candlepin.audit;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.LinkedList;
+import java.util.TimeZone;
+
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
-
-import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
@@ -27,12 +31,10 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.FileAppender;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.TimeZone;
-
 /**
- * LoggingListener
+ * LoggingListener. This class is accessed by multiple servlet container threads.
+ * It must thus use Thread Local data. Each thread is guaranteed to call
+ * commit() or rollback() when a request finishes.
  *
  * Since we are actually adjusting logging configuration, we have to access the
  * underlying logger implementation instead of going through slf4j.
@@ -41,13 +43,15 @@ import java.util.TimeZone;
  */
 public class LoggingListener implements EventListener {
     private static Logger auditLog;
-
+    private ThreadLocalEventCache eventsToLog;
     private boolean verbose;
+    private static org.slf4j.Logger log = LoggerFactory.getLogger(LoggingListener.class);
 
     private final DateFormat df;
 
     @Inject
-    public LoggingListener(Configuration config) {
+    public LoggingListener(Configuration config, ThreadLocalEventCache eventCache) {
+        eventsToLog = eventCache;
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         auditLog = lc.getLogger(LoggingListener.class.getCanonicalName() + ".AuditLog");
 
@@ -76,21 +80,37 @@ public class LoggingListener implements EventListener {
 
     @Override
     public void onEvent(Event e) {
-        auditLog.info(
-            "{} principalType={} principal={} target={} entityId={} type={} owner={}\n",
-            new Object[] {
-                df.format(e.getTimestamp()),
-                e.getPrincipal().getType(),
-                e.getPrincipal().getName(),
-                e.getTarget(),
-                e.getEntityId(),
-                e.getType(),
-                e.getOwnerId()}
-        );
-        if (verbose) {
-            auditLog.info(String.format("==OLD==\n%s\n==NEW==\n%s\n\n", e.getOldEntity(),
-                e.getNewEntity()));
-        }
+        eventsToLog.addLast(e);
+    }
+
+    
+    @Override
+    public void commit() {
+       log.debug("Listener commit");
+       for (Event e : eventsToLog) {
+           auditLog.info(
+                   "{} principalType={} principal={} target={} entityId={} type={} owner={}\n",
+                   new Object[] {
+                       df.format(e.getTimestamp()),
+                       e.getPrincipal().getType(),
+                       e.getPrincipal().getName(),
+                       e.getTarget(),
+                       e.getEntityId(),
+                       e.getType(),
+                       e.getOwnerId()}
+               );
+               if (verbose) {
+                   auditLog.info(String.format("==OLD==\n%s\n==NEW==\n%s\n\n", e.getOldEntity(),
+                       e.getNewEntity()));
+               }
+       }
+       eventsToLog.clear();
+    }
+
+    @Override
+    public void rollback() {
+        log.debug("Listener rollback");
+        eventsToLog.clear();
     }
 
 }

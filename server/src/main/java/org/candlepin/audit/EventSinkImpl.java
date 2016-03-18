@@ -14,6 +14,7 @@
  */
 package org.candlepin.audit;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -21,7 +22,6 @@ import java.util.Set;
 import javax.inject.Inject;
 
 import org.candlepin.common.config.Configuration;
-import org.candlepin.config.ConfigProperties;
 import org.candlepin.model.Consumer;
 import org.candlepin.model.Entitlement;
 import org.candlepin.model.Owner;
@@ -45,24 +45,12 @@ public class EventSinkImpl implements EventSink {
 
     private static Logger log = LoggerFactory.getLogger(EventSinkImpl.class);
     private EventFactory eventFactory;
-    private Configuration config;
-    private ObjectMapper mapper;
     private EventFilter eventFilter;
-
-    /*
-     * Important use of ThreadLocal here, each Tomcat/Quartz thread gets it's own session
-     * which is reused across invocations. Sessions must have commit or rollback called
-     * on them per request/job. This is handled in EventFilter for the API, and KingpinJob
-     * for quartz jobs.
-     */
-
-
+    private List<EventListener> listeners = new ArrayList<EventListener>();
+    
     @Inject
-    public EventSinkImpl(EventFilter eventFilter, EventFactory eventFactory,
-            ObjectMapper mapper, Configuration config) {
+    public EventSinkImpl(EventFilter eventFilter, EventFactory eventFactory) {
         this.eventFactory = eventFactory;
-        this.mapper = mapper;
-        this.config = config;
         this.eventFilter = eventFilter;
     }
 
@@ -103,6 +91,12 @@ public class EventSinkImpl implements EventSink {
 
     }
 
+
+    @Override
+    public void registerListener(EventListener instance) {
+        listeners.add(instance);
+    }
+    
     /**
      * Dispatch queued events. (if there are any)
      *
@@ -110,13 +104,18 @@ public class EventSinkImpl implements EventSink {
      */
     @Override
     public void sendEvents() {
-            log.debug("Committing hornetq transaction.");
+        log.debug("Committing transaction.");
+        for (EventListener listener : listeners) {
+            listener.commit();
+        }
     }
 
     @Override
     public void rollback() {
-        log.warn("Rolling back hornetq transaction.");
-        
+        log.warn("Rolling back transaction.");
+        for (EventListener listener : listeners) {
+            listener.rollback();
+        }
     }
 
     public void emitConsumerCreated(Consumer newConsumer) {
@@ -174,4 +173,6 @@ public class EventSinkImpl implements EventSink {
             Set<Entitlement> entitlements, ComplianceStatus compliance) {
         queueEvent(eventFactory.complianceCreated(consumer, entitlements, compliance));
     }
+
+   
 }

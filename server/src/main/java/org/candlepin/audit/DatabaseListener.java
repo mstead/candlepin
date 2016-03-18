@@ -29,6 +29,10 @@ import org.slf4j.LoggerFactory;
  */
 public class DatabaseListener implements EventListener {
 
+    /**
+     * Using EventCurator by multiple threads should be safe, as EntityManager is always
+     * used from ThreadLocal. See Google Guice JpaPersistService
+     */
     private EventCurator eventCurator;
     private static Logger log = LoggerFactory.getLogger(DatabaseListener.class);
 
@@ -41,8 +45,6 @@ public class DatabaseListener implements EventListener {
     public void onEvent(Event event) {
         // We're outside of a web request here, need to create this event and satisfy the
         // access control interceptor.
-        Principal systemPrincipal = new SystemPrincipal();
-        ResteasyProviderFactory.pushContext(Principal.class, systemPrincipal);
         if (log.isDebugEnabled()) {
             log.debug("Received event: " + event);
         }
@@ -50,5 +52,24 @@ public class DatabaseListener implements EventListener {
         if (event != null) {
             eventCurator.create(event);
         }
+    }
+    
+    /**
+     * So far the commit() and rollback() methods are noops for this 
+     * listener. The events are gonna be audited through eventCurator as part of
+     * the methods transaction. This is good and bad. Good for performance but
+     * maybe it will cause some incosistencies in face of failures. However, 
+     * if we hit inconsistencies, what we can do is to implement these
+     * two methods, so that DatabaseListener runs completely separate 
+     * database transaction from the one of the method.
+     */
+    @Override
+    public void commit() {
+        log.debug("Listener commit");
+    }
+
+    @Override
+    public void rollback() {
+        log.debug("Listener rollback");
     }
 }
