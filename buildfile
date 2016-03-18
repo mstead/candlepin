@@ -1,3 +1,4 @@
+# 
 # vi: set ft=ruby:
 
 ### Repositories
@@ -148,15 +149,6 @@ OAUTH= [group('oauth',
               :version => '20100527')]
 
 QUARTZ = 'org.quartz-scheduler:quartz:jar:2.2.1'
-
-HORNETQ = [group('hornetq-server',
-                 'hornetq-core-client',
-                 'hornetq-commons',
-                 'hornetq-journal',
-                 # 'hornetq-resources', #Native libs for libaio
-                 :under=>'org.hornetq',
-                 :version=>'2.4.7.Final'),
-            'io.netty:netty-all:jar:4.0.13.Final']
 
 SCHEMASPY = 'net.sourceforge:schemaSpy:jar:4.1.1'
 
@@ -432,7 +424,6 @@ define "candlepin" do
       GETTEXT_COMMONS,
       GUICE,
       HIBERNATE,
-      HORNETQ,
       JACKSON,
       LIQUIBASE,
       LOGGING,

@@ -17,7 +17,7 @@ package org.candlepin.guice;
 import static org.candlepin.config.ConfigProperties.*;
 
 import org.candlepin.audit.AMQPBusPublisher;
-import org.candlepin.audit.HornetqContextListener;
+import org.candlepin.audit.EventingContextListener;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.config.ConfigurationException;
 import org.candlepin.common.config.EncryptedConfiguration;
@@ -68,7 +68,7 @@ import javax.servlet.ServletContextEvent;
 public class CandlepinContextListener extends GuiceResteasyBootstrapServletContextListener {
     public static final String CONFIGURATION_NAME = Configuration.class.getName();
 
-    private HornetqContextListener hornetqListener;
+    private EventingContextListener hornetqListener;
     private PinsetterContextListener pinsetterListener;
     private LoggerContextListener loggerListener;
 
@@ -128,7 +128,7 @@ public class CandlepinContextListener extends GuiceResteasyBootstrapServletConte
         map.init();
 
         if (config.getBoolean(HORNETQ_ENABLED)) {
-            hornetqListener = injector.getInstance(HornetqContextListener.class);
+            hornetqListener = injector.getInstance(EventingContextListener.class);
             hornetqListener.contextInitialized(injector);
         }
 

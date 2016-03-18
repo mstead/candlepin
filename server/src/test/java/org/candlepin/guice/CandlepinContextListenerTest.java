@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 
 import org.candlepin.TestingModules;
 import org.candlepin.audit.AMQPBusPublisher;
-import org.candlepin.audit.HornetqContextListener;
+import org.candlepin.audit.EventingContextListener;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.config.ConfigurationException;
 import org.candlepin.common.config.ConfigurationPrefixes;
@@ -53,7 +53,7 @@ import javax.servlet.ServletContextEvent;
 public class CandlepinContextListenerTest {
     private Configuration config;
     private CandlepinContextListener listener;
-    private HornetqContextListener hqlistener;
+    private EventingContextListener hqlistener;
     private PinsetterContextListener pinlistener;
     private AMQPBusPublisher buspublisher;
     private AMQPBusPubProvider busprovider;
@@ -71,7 +71,7 @@ public class CandlepinContextListenerTest {
         config = mock(Configuration.class);
         when(config.strippedSubset(eq(ConfigurationPrefixes.LOGGING_CONFIG_PREFIX)))
             .thenReturn(new MapConfiguration());
-        hqlistener = mock(HornetqContextListener.class);
+        hqlistener = mock(EventingContextListener.class);
         pinlistener = mock(PinsetterContextListener.class);
         buspublisher = mock(AMQPBusPublisher.class);
         busprovider = mock(AMQPBusPubProvider.class);
@@ -204,7 +204,7 @@ public class CandlepinContextListenerTest {
         @Override
         protected void configure() {
             bind(PinsetterContextListener.class).toInstance(pinlistener);
-            bind(HornetqContextListener.class).toInstance(hqlistener);
+            bind(EventingContextListener.class).toInstance(hqlistener);
             bind(AMQPBusPublisher.class).toInstance(buspublisher);
             bind(AMQPBusPubProvider.class).toInstance(busprovider);
         }
