@@ -43,7 +43,7 @@ public class QpidSessionPool {
         TopicSession s = sessions.get();
         if (s == null) {
             try {
-                s = connection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
+                s = connection.createTopicSession(true, Session.SESSION_TRANSACTED);
             } catch (JMSException e) {
                 throw new RuntimeException(e);
             }

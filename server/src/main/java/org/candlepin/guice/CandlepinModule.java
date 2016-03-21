@@ -334,6 +334,7 @@ public class CandlepinModule extends AbstractModule {
         // for lazy loading:
         bind(QpidSessionPool.class).toProvider(QpidSessionPoolProvider.class)
                 .in(Singleton.class);
+        bind(AMQPBusPublisher.class).in(Singleton.class);
     }
 
     private void configureEventSink() {
