@@ -88,7 +88,10 @@ public class EventSinkImpl implements EventSink {
         }
 
         log.debug("Queuing event: {}", event);
-
+        for (EventListener l : listeners) {
+            l.onEvent(event);
+        }
+            
     }
 
 
