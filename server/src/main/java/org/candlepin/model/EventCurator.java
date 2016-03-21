@@ -21,6 +21,8 @@ import org.hibernate.Criteria;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 
+import com.google.inject.persist.Transactional;
+
 import java.util.List;
 
 /**
@@ -67,4 +69,15 @@ public class EventCurator extends AbstractHibernateCurator<Event> {
             Restrictions.eq("consumerId", consumer.getId())).list();
     }
 
+    /**
+     * This override is here to make sure EventCurator is not flushing the 
+     * create. The flush should not be necessary but imposes 
+     * performance overhead. 
+     */
+    @Override
+    @Transactional
+    public Event create(Event entity) {
+        getEntityManager().persist(entity);
+        return entity;
+    }
 }
