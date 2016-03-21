@@ -53,7 +53,6 @@ public class QpidSessionPoolProvider implements Provider<QpidSessionPool> {
 
     private Context ctx;
     private TopicConnection connection;
-//    private TopicSession session;
     
     private static org.slf4j.Logger log = LoggerFactory.getLogger(QpidSessionPoolProvider.class);
 

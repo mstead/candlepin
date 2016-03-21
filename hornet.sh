@@ -9,4 +9,4 @@ buildr clean
 server/bin/deploy 
 #cd server; buildr rspec:consumer_resource_host_guest_spec:'guest should impose SLA on host auto-attach'
 #cd server; buildr rspec:consumer_resource_spec
-cd server; buildr rspec:consumer_resource_spec:'should not allow a consumer to update their hypervisorId to one in use by owner'
+cd server; buildr rspec:consumer_resource_spec
