@@ -35,6 +35,7 @@ public class QpidSessionPool {
         this.ctx = ctx;
     }
 
+    
     /**
      * Currently we create a session per request
      * @return

@@ -78,6 +78,11 @@ public class AMQPBusPublisher implements EventListener {
     @Override
     public void commit() {
         try {
+            /**
+             * TODO in actual implementation, we should commit only if 
+             * the session was needed during the request. That means we shouldn't commit
+             * if no events has been published to using this session.
+             */
             sessionPool.getSession().commit();
         } catch (JMSException e) {
             throw new RuntimeException(e);
@@ -88,6 +93,9 @@ public class AMQPBusPublisher implements EventListener {
     @Override
     public void rollback() {
         try {
+            /**
+             * TODO same idea as for commit applies here as well
+             */
             sessionPool.getSession().rollback();
         } catch (JMSException e) {
             throw new RuntimeException(e);
