@@ -14,8 +14,13 @@
  */
 package org.candlepin.audit;
 
+import java.net.URISyntaxException;
 import java.util.List;
 
+import javax.jms.JMSException;
+import javax.jms.MessageConsumer;
+
+import org.apache.qpid.client.AMQQueue;
 import org.candlepin.config.ConfigProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +59,21 @@ public class EventingContextListener {
                 log.warn("Unable to register listener " + listeners.get(i), e);
             }
         }
+        
+        //Setup QpidListener implementations
+        //The QpidSessionPool should be a Singleton. In general its used to 
+        //produce qpid sessions per thread. Our requirement is that on one
+        //server, we will run only single instance of every QpidListener implementation.
+        //So here we get a specific session for it from the QpidSessionPool. This session is
+        //tied to the thread of this ContextListener
+        try {
+            QpidSessionPool sessionPool = injector.getInstance(QpidSessionPool.class);
+            ActivationListener actListener = injector.getInstance(ActivationListener.class);
+            MessageConsumer mc = sessionPool.getSession().createConsumer(new AMQQueue(actListener.getQueueName()));
+            mc.setMessageListener(actListener);
+        } catch (Exception e1) {
+            throw new RuntimeException("Failed to setup a QpidListener", e1);
+        }
 
         // Initialize the Event sink AFTER the internal server has been
         // created and started.
@@ -85,3 +105,4 @@ public class EventingContextListener {
     }
 
 }
+
