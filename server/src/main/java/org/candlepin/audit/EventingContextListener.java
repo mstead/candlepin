@@ -19,7 +19,9 @@ import java.util.List;
 
 import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
+import javax.jms.TopicSubscriber;
 
+import org.apache.activemq.command.ActiveMQTopic;
 import org.apache.qpid.client.AMQQueue;
 import org.candlepin.config.ConfigProperties;
 import org.slf4j.Logger;
@@ -67,10 +69,10 @@ public class EventingContextListener {
         //So here we get a specific session for it from the QpidSessionPool. This session is
         //tied to the thread of this ContextListener
         try {
-            QpidSessionPool sessionPool = injector.getInstance(QpidSessionPool.class);
-            ActivationListener actListener = injector.getInstance(ActivationListener.class);
-            MessageConsumer mc = sessionPool.getSession().createConsumer(new AMQQueue(actListener.getQueueName()));
-            mc.setMessageListener(actListener);
+            ActiveMqSessionPool sessionPool = injector.getInstance(ActiveMqSessionPool.class);
+            ActivationListener actListener = injector.getInstance(ActivationListener.class);            
+            TopicSubscriber subscriber = sessionPool.getSession().createDurableSubscriber(new ActiveMQTopic(actListener.getQueueName()), "ActivationSubscriber");
+            subscriber.setMessageListener(actListener);
         } catch (Exception e1) {
             throw new RuntimeException("Failed to setup a QpidListener", e1);
         }

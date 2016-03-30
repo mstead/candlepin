@@ -22,10 +22,10 @@ import javax.validation.Validation;
 import javax.validation.ValidatorFactory;
 
 import org.candlepin.audit.AMQPBusPublisher;
+import org.candlepin.audit.ActiveMqSessionPool;
 import org.candlepin.audit.EventSink;
 import org.candlepin.audit.EventSinkImpl;
 import org.candlepin.audit.NoopEventSinkImpl;
-import org.candlepin.audit.QpidSessionPool;
 import org.candlepin.auth.Principal;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.config.ConfigurationPrefixes;
@@ -332,7 +332,7 @@ public class CandlepinModule extends AbstractModule {
 
     private void configureAmqp() {
         // for lazy loading:
-        bind(QpidSessionPool.class).toProvider(QpidSessionPoolProvider.class)
+        bind(ActiveMqSessionPool.class).toProvider(ActiveMQSessionPoolProvider.class)
                 .in(Singleton.class);
         bind(AMQPBusPublisher.class).in(Singleton.class);
     }

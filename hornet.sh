@@ -1,6 +1,7 @@
 #!/bin/bash
 sudo cp candlepin.conf /etc/candlepin/candlepin.conf
 sudo rm -rf /var/log/candlepin/*
+sudo rm -rf /var/log/tomcat/*
 cp test-config/persistence.xml server/src/main/resources/META-INF/
 cp test-config/logback.xml server/src/main/resources/
 buildr clean

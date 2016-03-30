@@ -40,10 +40,10 @@ import javax.jms.TopicSession;
 public class AMQPBusPublisher implements EventListener {
     private static Logger log = LoggerFactory.getLogger(AMQPBusPublisher.class);
     private ObjectMapper mapper;
-    private QpidSessionPool sessionPool;
+    private ActiveMqSessionPool sessionPool;
     
     @Inject
-    public AMQPBusPublisher(QpidSessionPool sessionPool, ObjectMapper omapper) {
+    public AMQPBusPublisher(ActiveMqSessionPool sessionPool, ObjectMapper omapper) {
         this.sessionPool = sessionPool;
         this.mapper = omapper;
     }

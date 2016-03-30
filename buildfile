@@ -26,6 +26,8 @@ unless use_pmd.nil?
 end
 
 ### Dependencies
+ACTIVE_MQ= ['org.apache.activemq:activemq-client:jar:5.13.2', 'org.apache.geronimo.specs:geronimo-jms_1.1_spec:jar:1.1', 'org.apache.geronimo.specs:geronimo-j2ee-management_1.1_spec:jar:1.0.1']
+
 RESTEASY = [group('jaxrs-api',
                   'resteasy-jaxrs',
                   'resteasy-jaxb-provider',
@@ -418,6 +420,7 @@ define "candlepin" do
     ### Building
     compile_classpath = [
       AMQP,
+      ACTIVE_MQ,
       BOUNCYCASTLE,
       COLLECTIONS,
       COMMONS,

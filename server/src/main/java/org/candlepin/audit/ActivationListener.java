@@ -43,13 +43,13 @@ public class ActivationListener implements QpidListener {
 //    private SubscriptionServiceAdapter subscriptionService;
 //    private ObjectMapper mapper;
 
-    private QpidSessionPool sessionPool; 
+    private ActiveMqSessionPool sessionPool; 
     //TODO, in the final implementation
     //we may not want the listener to access QpidSessionPool directly. Instead
     //I will make sure that the qpid session for this particular listener
     //will use non-transacted, auto-acknowledge session
     @Inject
-    public  ActivationListener(QpidSessionPool spool){
+    public  ActivationListener(ActiveMqSessionPool spool){
         this.sessionPool = spool;
     }
     
@@ -60,7 +60,7 @@ public class ActivationListener implements QpidListener {
 
     @Override
     public String getQueueName() {
-        return "qpoolcreated";
+        return "event";
     }
 //    
 //    @Inject
