@@ -56,7 +56,6 @@ import org.candlepin.model.ExporterMetadata;
 import org.candlepin.model.ExporterMetadataCurator;
 import org.candlepin.model.ImportRecord;
 import org.candlepin.model.ImportRecordCurator;
-import org.candlepin.model.ImportUpstreamConsumer;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
 import org.candlepin.model.OwnerInfo;
@@ -83,7 +82,6 @@ import org.candlepin.service.OwnerServiceAdapter;
 import org.candlepin.sync.ConflictOverrides;
 import org.candlepin.sync.Importer;
 import org.candlepin.sync.ImporterException;
-import org.candlepin.sync.Meta;
 import org.candlepin.sync.SyncDataFormatException;
 import org.candlepin.util.ContentOverrideValidator;
 import org.candlepin.util.ServiceLevelValidator;
@@ -133,6 +131,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -1202,7 +1201,8 @@ public class OwnerResource {
         @ApiResponse(code = 409, message = "") })
     public ImportRecord importManifest(
         @PathParam("owner_key") @Verify(Owner.class) String ownerKey,
-        @QueryParam("force") String[] overrideConflicts, MultipartInput input) {
+        @QueryParam("force") String[] overrideConflicts,
+        @QueryParam("async") @DefaultValue("false") boolean async, MultipartInput input) {
 
         if (overrideConflicts.length == 1) {
             /*
@@ -1248,34 +1248,41 @@ public class OwnerResource {
             }
             File archive = part.getBody(new GenericType<File>() {
             });
-            log.info("Importing archive " + archive.getAbsolutePath() +
-                " for owner " + owner.getDisplayName());
-            data = importer.loadExport(owner, archive, overrides);
+            String archivePath = archive.getAbsolutePath();
+            log.info("Importing archive {} for owner {}", archivePath, owner.getDisplayName());
+            if (async) {
+                log.info("Running async import");
+                JobDetail importJob = importer.loadExportAsync(owner, archive, filename, overrides);
+                return Response.status(Response.Status.OK)
+                        .type(MediaType.APPLICATION_JSON).entity(importJob).build();
+            }
 
-            sink.emitImportCreated(owner);
-            return recordImportSuccess(owner, data, overrides, filename);
+            ImportRecord importRecord = importer.loadExport(owner, archive, overrides, filename);
+            return Response.status(Response.Status.OK)
+                    .type(MediaType.APPLICATION_JSON).entity(importRecord).build();
         }
         catch (IOException e) {
-            recordImportFailure(owner, data, e, filename);
+            importer.recordImportFailure(owner, data, e, filename);
             throw new IseException(i18n.tr("Error reading export archive"), e);
         }
         // These come back with internationalized messages, so we can transfer:
         catch (SyncDataFormatException e) {
-            recordImportFailure(owner, data, e, filename);
+            importer.recordImportFailure(owner, data, e, filename);
             throw new BadRequestException(e.getMessage(), e);
         }
         catch (ImporterException e) {
-            recordImportFailure(owner, data, e, filename);
+            importer.recordImportFailure(owner, data, e, filename);
             throw new IseException(e.getMessage(), e);
         }
         // Grab candlepin exceptions to record the error and then rethrow
         // to pass on the http return code
         catch (CandlepinException e) {
-            recordImportFailure(owner, data, e, filename);
+            importer.recordImportFailure(owner, data, e, filename);
             throw e;
         }
         finally {
-            log.info("Import attempt completed for owner " + owner.getDisplayName());
+            String head = async ? "Async import" : "Import";
+            log.info(head + " attempt completed for owner " + owner.getDisplayName());
         }
     }
 
@@ -1436,93 +1443,4 @@ public class OwnerResource {
         return consumerCurator.getHypervisorsBulk(hypervisorIds, ownerKey);
     }
 
-    private ImportRecord recordImportSuccess(Owner owner, Map data,
-        ConflictOverrides forcedConflicts, String filename) {
-
-        ImportRecord record = new ImportRecord(owner);
-        Meta meta = (Meta) data.get("meta");
-        if (meta != null) {
-            record.setGeneratedBy(meta.getPrincipalName());
-            record.setGeneratedDate(meta.getCreated());
-        }
-        record.setUpstreamConsumer(createImportUpstreamConsumer(owner, null));
-        record.setFileName(filename);
-
-        List<Subscription> subscriptions = (List<Subscription>) data.get("subscriptions");
-        boolean activeSubscriptionFound = false, expiredSubscriptionFound = false;
-        Date currentDate = new Date();
-        for (Subscription subscription : subscriptions) {
-            if (subscription.getEndDate() == null || subscription.getEndDate().after(currentDate)) {
-                activeSubscriptionFound = true;
-            }
-            else {
-                expiredSubscriptionFound = true;
-                sink.emitSubscriptionExpired(subscription);
-            }
-        }
-        String msg = i18n.tr("{0} file imported successfully.", owner.getKey());
-        if (!forcedConflicts.isEmpty()) {
-            msg = i18n.tr("{0} file imported forcibly.", owner.getKey());
-        }
-
-        if (!activeSubscriptionFound) {
-            msg += i18n.tr("No active subscriptions found in the file.");
-            record.recordStatus(ImportRecord.Status.SUCCESS_WITH_WARNING, msg);
-        }
-        else if (expiredSubscriptionFound) {
-            msg += i18n.tr("One or more inactive subscriptions found in the file.");
-            record.recordStatus(ImportRecord.Status.SUCCESS_WITH_WARNING, msg);
-        }
-        else {
-            record.recordStatus(ImportRecord.Status.SUCCESS, msg);
-        }
-
-        this.importRecordCurator.create(record);
-        return record;
-    }
-
-    private void recordImportFailure(Owner owner, Map data, Throwable error,
-        String filename) {
-        ImportRecord record = new ImportRecord(owner);
-        Meta meta = (Meta) data.get("meta");
-        log.error("Recording import failure", error);
-        if (meta != null) {
-            record.setGeneratedBy(meta.getPrincipalName());
-            record.setGeneratedDate(meta.getCreated());
-        }
-        record.setUpstreamConsumer(createImportUpstreamConsumer(owner, null));
-        record.setFileName(filename);
-
-        record.recordStatus(ImportRecord.Status.FAILURE, error.getMessage());
-
-        this.importRecordCurator.create(record);
-    }
-
-    private void recordManifestDeletion(Owner owner, String username, UpstreamConsumer uc) {
-        ImportRecord record = new ImportRecord(owner);
-        record.setGeneratedBy(username);
-        record.setGeneratedDate(new Date());
-        String msg = i18n.tr("Subscriptions deleted by {0}", username);
-        record.recordStatus(ImportRecord.Status.DELETE, msg);
-        record.setUpstreamConsumer(createImportUpstreamConsumer(owner, uc));
-
-        this.importRecordCurator.create(record);
-    }
-
-    private ImportUpstreamConsumer createImportUpstreamConsumer(Owner owner, UpstreamConsumer uc) {
-        ImportUpstreamConsumer iup = null;
-        if (uc == null) {
-            uc = owner.getUpstreamConsumer();
-        }
-        if (uc != null) {
-            iup = new ImportUpstreamConsumer();
-            iup.setOwnerId(uc.getOwnerId());
-            iup.setName(uc.getName());
-            iup.setUuid(uc.getUuid());
-            iup.setType(uc.getType());
-            iup.setWebUrl(uc.getWebUrl());
-            iup.setApiUrl(uc.getApiUrl());
-        }
-        return iup;
-    }
 }

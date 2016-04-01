@@ -1181,6 +1181,8 @@ class Candlepin
 
   def import(owner_key, filename, params = {})
     path = "/owners/#{owner_key}/imports?"
+    async = params[:async] || "false"
+    path += "async=#{async}&"
     if params.has_key? :force
       if params[:force].kind_of? Array
         # New style, array of conflict keys to force:
