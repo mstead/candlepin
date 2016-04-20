@@ -30,7 +30,6 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlAccessType;
@@ -48,8 +47,7 @@ import javax.xml.bind.annotation.XmlTransient;
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.PROPERTY)
 @Entity
-@Table(name = "cp_environment",
-    uniqueConstraints = {@UniqueConstraint(columnNames = {"owner_id", "name"})})
+@Table(name = "cp_environment")
 public class Environment extends AbstractHibernateObject implements Serializable, Owned {
     private static final long serialVersionUID = 4162471699021316341L;
 

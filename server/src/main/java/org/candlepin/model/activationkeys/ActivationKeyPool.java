@@ -28,7 +28,6 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -41,8 +40,7 @@ import javax.xml.bind.annotation.XmlTransient;
 @XmlRootElement
 @Entity
 @XmlAccessorType(XmlAccessType.PROPERTY)
-@Table(name = "cp_activationkey_pool",
-    uniqueConstraints = {@UniqueConstraint(columnNames = {"key_id", "pool_id"})})
+@Table(name = "cp_activationkey_pool")
 public class ActivationKeyPool extends AbstractHibernateObject implements Comparable<ActivationKeyPool> {
 
     @Id

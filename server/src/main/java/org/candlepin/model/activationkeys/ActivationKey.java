@@ -40,7 +40,6 @@ import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlAccessType;
@@ -53,8 +52,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.PROPERTY)
 @Entity
-@Table(name = "cp_activation_key",
-    uniqueConstraints = {@UniqueConstraint(columnNames = {"name", "owner_id"})})
+@Table(name = "cp_activation_key")
 public class ActivationKey extends AbstractHibernateObject implements Owned, Named, Eventful {
 
     public static final int RELEASE_VERSION_LENGTH = 255;

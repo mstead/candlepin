@@ -29,7 +29,6 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToOne;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlAccessType;
@@ -51,8 +50,7 @@ import javax.xml.bind.annotation.XmlTransient;
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.PROPERTY)
 @Entity
-@Table(name = "cp_consumer_hypervisor", uniqueConstraints =
-    @UniqueConstraint(name = "cp_consumer_hypervisor_ukey", columnNames = {"owner_id", "hypervisor_id"}))
+@Table(name = "cp_consumer_hypervisor")
 public class HypervisorId extends AbstractHibernateObject {
 
     @Id
