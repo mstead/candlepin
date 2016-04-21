@@ -309,8 +309,7 @@ public class DatabaseTestFixture {
      * @param inj
      */
     private static void insertValidationEventListeners(Injector inj) {
-        Provider<EntityManagerFactory> emfProvider =
-            inj.getProvider(EntityManagerFactory.class);
+        Provider<EntityManagerFactory> emfProvider = inj.getProvider(EntityManagerFactory.class);
         HibernateEntityManagerFactory hibernateEntityManagerFactory =
             (HibernateEntityManagerFactory) emfProvider.get();
         SessionFactoryImpl sessionFactoryImpl =

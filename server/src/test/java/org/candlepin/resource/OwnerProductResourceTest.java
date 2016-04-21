@@ -32,6 +32,7 @@ import org.candlepin.model.ProductCertificateCurator;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
 import org.candlepin.model.dto.Subscription;
+import org.candlepin.resteasy.IterableStreamingOutputFactory;
 import org.candlepin.test.DatabaseTestFixture;
 import org.candlepin.util.Util;
 
@@ -57,6 +58,7 @@ public class OwnerProductResourceTest extends DatabaseTestFixture {
     @Inject private OwnerCurator ownerCurator;
     @Inject private ProductManager productManager;
     @Inject private Configuration config;
+    @Inject private IterableStreamingOutputFactory isoFactory;
 
     private Product createProduct(Owner owner) {
         String label = "test_product";
@@ -104,7 +106,7 @@ public class OwnerProductResourceTest extends DatabaseTestFixture {
         OwnerCurator oc = mock(OwnerCurator.class);
         I18n i18n = I18nFactory.getI18n(getClass(), Locale.US, I18nFactory.FALLBACK);
         OwnerProductResource pr = new OwnerProductResource(pc, null, oc, null, productManager,
-            config, i18n);
+            config, i18n, this.isoFactory);
 
         Owner o = mock(Owner.class);
         Product p = mock(Product.class);

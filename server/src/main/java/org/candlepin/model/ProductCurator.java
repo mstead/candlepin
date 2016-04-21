@@ -151,8 +151,26 @@ public class ProductCurator extends AbstractHibernateCurator<Product> {
             .list();
     }
 
+    public ResultIterator<Product> iterateByOwner(Owner owner) {
+        return this.iterate(
+            this.createSecureCriteria()
+                .createAlias("owners", "owner")
+                .add(Restrictions.eq("owner.id", owner.getId()))
+        );
+    }
+
+    @Transactional
     public List<Product> listAllByIds(Owner owner, Collection<? extends Serializable> ids) {
         return this.listByCriteria(
+            this.createSecureCriteria()
+                .createAlias("owners", "owner")
+                .add(Restrictions.eq("owner.id", owner.getId()))
+                .add(Restrictions.in("id", ids))
+        );
+    }
+
+    public ResultIterator<Product> iterateAllByIds(Owner owner, Collection<? extends Serializable> ids) {
+        return this.iterate(
             this.createSecureCriteria()
                 .createAlias("owners", "owner")
                 .add(Restrictions.eq("owner.id", owner.getId()))

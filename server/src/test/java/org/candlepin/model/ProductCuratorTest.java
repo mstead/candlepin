@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -531,6 +532,137 @@ public class ProductCuratorTest extends DatabaseTestFixture {
         assertTrue(returned.contains(products.get(2)));
         assertFalse(returned.contains(products.get(3)));
         assertFalse(returned.contains(products.get(4)));
+    }
+
+    private List<Product> setupProductsForTest(Owner owner1, Owner owner2) {
+        List<Product> products = new ArrayList<Product>();
+        for (int i = 0; i < 5; i++) {
+            Product p = TestUtil.createProduct(owner1);
+            productCurator.create(p);
+            products.add(p);
+        }
+
+        for (int i = 0; i < 5; i++) {
+            Product p = TestUtil.createProduct(owner2);
+            productCurator.create(p);
+            products.add(p);
+        }
+
+        return products;
+    }
+
+    @Test
+    public void testListByOwner() {
+        Owner owner1 = this.createOwner();
+        Owner owner2 = this.createOwner();
+        List<Product> products = this.setupProductsForTest(owner1, owner2);
+
+        List<String> pids = new ArrayList<String>();
+        for (int i = 0; i < 5; ++i) {
+            pids.add(products.get(i).getId());
+        }
+
+        // Get all the products for this owner
+        List<Product> returned = productCurator.listByOwner(owner1);
+        assertEquals(pids.size(), returned.size());
+
+        // Verify our expected PIDs were returned
+        for (int i = 0; i < pids.size(); ++i) {
+            assertTrue(returned.contains(products.get(i)));
+        }
+
+        for (int i = pids.size(); i < returned.size(); ++i) {
+            assertFalse(returned.contains(products.get(i)));
+        }
+    }
+
+    @Test
+    public void testListByIds() {
+        Owner owner1 = this.createOwner();
+        Owner owner2 = this.createOwner();
+        List<Product> products = this.setupProductsForTest(owner1, owner2);
+
+        List<String> pids = new ArrayList<String>();
+        for (int i = 0; i < 3; ++i) {
+            pids.add(products.get(i).getId());
+        }
+
+        // ok get a chunk of items to lookup
+        List<Product> returned = productCurator.listAllByIds(owner1, pids);
+        assertEquals(pids.size(), returned.size());
+
+        // Verify our expected PIDs were returned
+        for (int i = 0; i < pids.size(); ++i) {
+            assertTrue(returned.contains(products.get(i)));
+        }
+
+        for (int i = pids.size(); i < returned.size(); ++i) {
+            assertFalse(returned.contains(products.get(i)));
+        }
+    }
+
+    @Test
+    public void testIterateByOwner() {
+        Owner owner1 = this.createOwner();
+        Owner owner2 = this.createOwner();
+        List<Product> products = this.setupProductsForTest(owner1, owner2);
+
+        List<String> pids = new ArrayList<String>();
+        for (int i = 0; i < 5; ++i) {
+            pids.add(products.get(i).getId());
+        }
+
+        // Get all the products for this owner
+        Iterator<Product> iterator = productCurator.iterateByOwner(owner1);
+        List<Product> returned = new ArrayList<Product>();
+
+        // Verify our expected PIDs were returned
+        while (iterator.hasNext()) {
+            Product p = iterator.next();
+            log.debug("Found product: {}", p);
+            returned.add(p);
+        }
+
+        assertEquals(pids.size(), returned.size());
+
+        for (int i = 0; i < pids.size(); ++i) {
+            assertTrue(returned.contains(products.get(i)));
+        }
+
+        for (int i = pids.size(); i < returned.size(); ++i) {
+            assertFalse(returned.contains(products.get(i)));
+        }
+    }
+
+    @Test
+    public void testIterateByIds() {
+        Owner owner1 = this.createOwner();
+        Owner owner2 = this.createOwner();
+        List<Product> products = this.setupProductsForTest(owner1, owner2);
+
+        List<String> pids = new ArrayList<String>();
+        for (int i = 0; i < 3; ++i) {
+            pids.add(products.get(i).getId());
+        }
+
+        // ok get a chunk of items to lookup
+        Iterator<Product> iterator = productCurator.iterateAllByIds(owner1, pids);
+        List<Product> returned = new ArrayList<Product>();
+
+        // Verify our expected PIDs were returned
+        while (iterator.hasNext()) {
+            returned.add(iterator.next());
+        }
+
+        assertEquals(pids.size(), returned.size());
+
+        for (int i = 0; i < pids.size(); ++i) {
+            assertTrue(returned.contains(products.get(i)));
+        }
+
+        for (int i = pids.size(); i < returned.size(); ++i) {
+            assertFalse(returned.contains(products.get(i)));
+        }
     }
 
     @Test

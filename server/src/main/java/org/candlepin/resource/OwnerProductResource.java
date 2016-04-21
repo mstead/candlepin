@@ -31,7 +31,9 @@ import org.candlepin.model.ProductCertificate;
 import org.candlepin.model.ProductCertificateCurator;
 import org.candlepin.model.ProductContent;
 import org.candlepin.model.ProductCurator;
+import org.candlepin.model.ResultIterator;
 import org.candlepin.pinsetter.tasks.RefreshPoolsForProductJob;
+import org.candlepin.resteasy.IterableStreamingOutputFactory;
 
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
@@ -59,6 +61,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+
 
 /**
  * API Gateway into /product
@@ -76,11 +81,13 @@ public class OwnerProductResource {
     private ProductManager productManager;
     private Configuration config;
     private I18n i18n;
+    private IterableStreamingOutputFactory isoFactory;
 
     @Inject
     public OwnerProductResource(ProductCurator productCurator, ContentCurator contentCurator,
         OwnerCurator ownerCurator, ProductCertificateCurator productCertCurator,
-        ProductManager productManager, Configuration config, I18n i18n) {
+        ProductManager productManager, Configuration config, I18n i18n,
+        IterableStreamingOutputFactory isoFactory) {
 
         this.productCurator = productCurator;
         this.contentCurator = contentCurator;
@@ -89,6 +96,7 @@ public class OwnerProductResource {
         this.productManager = productManager;
         this.config = config;
         this.i18n = i18n;
+        this.isoFactory = isoFactory;
     }
 
     /**
@@ -182,15 +190,17 @@ public class OwnerProductResource {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public List<Product> list(
+    public Response list(
         @Verify(Owner.class) @PathParam("owner_key") String ownerKey,
         @QueryParam("product") List<String> productIds) {
 
         Owner owner = this.getOwnerByKey(ownerKey);
 
-        return productIds.isEmpty() ?
-            productCurator.listByOwner(owner) :
-            productCurator.listAllByIds(owner, productIds);
+        ResultIterator<Product> iterator = productIds.isEmpty() ?
+            this.productCurator.iterateByOwner(owner) :
+            this.productCurator.iterateAllByIds(owner, productIds);
+
+        return Response.ok(this.isoFactory.create(iterator)).build();
     }
 
     /**
