@@ -95,6 +95,10 @@ public class AMQPBusPubProvider implements Provider<AMQPBusPublisher> {
 
         int maxRetries = config.getInt(ConfigProperties.AMQP_CONNECTION_RETRY_ATTEMPTS);
         long waitTimeInSeconds = config.getLong(ConfigProperties.AMQP_CONNECTION_RETRY_INTERVAL);
+        
+        //TODO for testing purposes
+        maxRetries = 1;
+        waitTimeInSeconds = 5;
 
         AMQConnectionFactory connectionFactory = (AMQConnectionFactory) ctx.lookup("qpidConnectionfactory");
         for (BrokerDetails broker : connectionFactory.getConnectionURL().getAllBrokerDetails()) {
@@ -162,7 +166,7 @@ public class AMQPBusPubProvider implements Provider<AMQPBusPublisher> {
 
             Map<Target, Map<Type, TopicPublisher>> pm = Util.newMap();
             buildAllTopicPublishers(pm);
-            return new AMQPBusPublisher(session, pm, mapper);
+            return new AMQPBusPublisher(session, pm, mapper, connection);
         }
         catch (Exception ex) {
             throw new RuntimeException(ex);
