@@ -97,7 +97,9 @@ import org.candlepin.service.SubscriptionServiceAdapter;
 import org.candlepin.service.UserServiceAdapter;
 import org.candlepin.sync.ExportCreationException;
 import org.candlepin.sync.Exporter;
+import org.candlepin.sync.file.Manifest;
 import org.candlepin.util.Util;
+import org.hibernate.tool.hbm2x.ExporterException;
 
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
@@ -107,6 +109,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jboss.resteasy.annotations.providers.jaxb.Wrapped;
 import org.jboss.resteasy.plugins.providers.atom.Feed;
+import org.jboss.resteasy.spi.InternalServerErrorException;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.quartz.JobDetail;
 import org.slf4j.Logger;
@@ -114,6 +117,8 @@ import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -1764,14 +1769,14 @@ public class ConsumerResource {
     @ApiResponses({ @ApiResponse(code = 403, message = ""), @ApiResponse(code = 500, message = ""),
         @ApiResponse(code = 404, message = "") })
     @GET
-    @Produces("application/zip")
     @Path("{consumer_uuid}/export")
-    public File exportData(
+    public Response exportData(
         @Context HttpServletResponse response,
         @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
         @QueryParam("cdn_label") String cdnLabel,
         @QueryParam("webapp_prefix") String webAppPrefix,
-        @QueryParam("api_url") String apiUrl) {
+        @QueryParam("api_url") String apiUrl,
+        @QueryParam("async") @DefaultValue("false") boolean async) {
 
         Consumer consumer = consumerCurator.verifyAndLookupConsumer(consumerUuid);
         if (consumer.getType() == null ||
@@ -1791,14 +1796,22 @@ public class ConsumerResource {
 
         poolManager.regenerateDirtyEntitlements(entitlementCurator.listByConsumer(consumer));
 
-        File archive;
-        try {
-            archive = exporter.getFullExport(consumer, cdnLabel, webAppPrefix, apiUrl);
-            response.addHeader("Content-Disposition", "attachment; filename=" +
-                archive.getName());
+        if(async) {
+            JobDetail exportJobDetail = exporter.getFullExportAsync(consumer, cdnLabel, webAppPrefix, apiUrl);
+            return Response.status(Response.Status.OK)
+                    .type(MediaType.APPLICATION_JSON).entity(exportJobDetail).build();
+        }
 
+        FileInputStream stream = null;
+        try {
+            File archive = exporter.getFullExport(consumer, cdnLabel, webAppPrefix, apiUrl);
+            stream = new FileInputStream(archive);
             sink.queueEvent(eventFactory.exportCreated(consumer));
-            return archive;
+            return Response.ok(stream, MediaType.APPLICATION_OCTET_STREAM)
+                    .header("Content-Disposition", "attachment; filename=" + archive.getName()).build();
+        }
+        catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
         }
         catch (ExportCreationException e) {
             throw new IseException(i18n.tr("Unable to create export archive"),
@@ -1806,6 +1819,49 @@ public class ConsumerResource {
         }
     }
 
+    @GET
+    @Produces("application/zip")
+    @Path("{consumer_uuid}/export/{export_id}")
+    public Response downloadExistingExport(
+        @Context HttpServletResponse response,
+        @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
+        @PathParam("export_id") String exportId) {
+        Consumer consumer = consumerCurator.verifyAndLookupConsumer(consumerUuid);
+        if (consumer.getType() == null ||
+            !consumer.getType().isManifest()) {
+            throw new ForbiddenException(
+                i18n.tr("Invalid consumer specified for manifest download. ''{0}''.", consumerUuid));
+        }
+        // FIXME There is no linkage here b/w consumer <-> manifest.
+        try {
+            // The response for this request is formulated a little different for this
+            // file download. In order to stream the results from the DB to the client
+            // we write the file contents directly to the response output stream.
+            //
+            // NOTE: Passing the database input stream to the response builder seems
+            //       like it would be a correct approach here, but large object streaming
+            //       can only be done inside a single transaction, so we have to stream it
+            //       manually.
+            response.setContentType("application/zip");
+            response.setHeader("Content-Disposition", "attachment; filename=" + consumer.getUuid() +
+                "-manifest.zip");
+            exporter.readStoredExport(response.getOutputStream(), exportId);
+            return Response.ok().build();
+        }
+        catch (IOException e) {
+            throw new InternalServerErrorException(e);
+        }
+    }
+
+    /**
+     * Retrieves a single Consumer
+     *
+     * @param uuid uuid of the consumer sought.
+     * @return a Consumer object
+     * @httpcode 400
+     * @httpcode 404
+     * @httpcode 200
+     */
     @ApiOperation(notes = "Retrieves a single Consumer", value = "regenerateIdentityCertificates")
     @ApiResponses({ @ApiResponse(code = 400, message = ""), @ApiResponse(code = 404, message = "") })
     @POST

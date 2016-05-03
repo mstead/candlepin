@@ -15,6 +15,7 @@
 package org.candlepin.sync;
 
 import org.candlepin.common.config.Configuration;
+import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.common.util.VersionUtil;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.guice.PrincipalProvider;
@@ -32,19 +33,26 @@ import org.candlepin.model.IdentityCertificate;
 import org.candlepin.model.Pool;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductCertificate;
+import org.candlepin.pinsetter.tasks.ExportJob;
 import org.candlepin.pki.PKIUtility;
 import org.candlepin.policy.js.export.ExportRules;
 import org.candlepin.service.EntitlementCertServiceAdapter;
 import org.candlepin.service.ProductServiceAdapter;
+import org.candlepin.sync.file.Manifest;
+import org.hibernate.tool.hbm2x.ExporterException;
+import org.quartz.JobDetail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import com.google.inject.persist.Transactional;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -52,6 +60,10 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -89,6 +101,7 @@ public class Exporter {
     private Configuration config;
     private ExportRules exportRules;
     private PrincipalProvider principalProvider;
+    private ManifestService manifestService;
 
     private static final String LEGACY_RULES_FILE = "/rules/default-rules.js";
 
@@ -103,7 +116,8 @@ public class Exporter {
         PrincipalProvider principalProvider, DistributorVersionCurator distVerCurator,
         DistributorVersionExporter distVerExporter,
         CdnCurator cdnCurator,
-        CdnExporter cdnExporter) {
+        CdnExporter cdnExporter,
+        ManifestService manifestService) {
 
         this.consumerTypeCurator = consumerTypeCurator;
 
@@ -126,6 +140,7 @@ public class Exporter {
         this.distVerExporter = distVerExporter;
         this.cdnCurator = cdnCurator;
         this.cdnExporter = cdnExporter;
+        this.manifestService = manifestService;
 
         mapper = SyncUtils.getObjectMapper(this.config);
     }
@@ -158,6 +173,18 @@ public class Exporter {
         }
         catch (IOException e) {
             log.error("Error generating entitlement export", e);
+            throw new ExportCreationException("Unable to create export archive", e);
+        }
+    }
+
+    public ExportResult generateAndStoreExport(Consumer consumer, String cdnKey, String webAppPrefix,
+        String apiUrl) throws ExportCreationException {
+        try {
+            File export = getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
+            String fileId = manifestService.storeExport(export, consumer);
+            return new ExportResult(consumer, fileId);
+        }
+        catch (ManifestServiceException e) {
             throw new ExportCreationException("Unable to create export archive", e);
         }
     }
@@ -631,6 +658,60 @@ public class Exporter {
                     writer.close();
                 }
             }
+        }
+    }
+
+    public JobDetail getFullExportAsync(Consumer consumer, String cdnLabel, String webAppPrefix,
+        String apiUrl) {
+        log.info("Scheduling Async Export for consumer {}", consumer.getUuid());
+        return ExportJob.scheduleExport(consumer, cdnLabel, webAppPrefix, apiUrl);
+    }
+
+    @Transactional
+    public File getStoredExport(String exportId) {
+        try {
+            Manifest manifest = manifestService.get(exportId);
+            File tmpFile = new SyncUtils(config).tempFileReference("export_dl");
+            Files.copy(manifest.getInputStream(), tmpFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return tmpFile;
+        }
+        catch (ManifestServiceException e) {
+            throw new ExporterException("Unable to find manifest by id: " + exportId, e);
+        }
+        catch (IOException e) {
+            throw new ExporterException("Unable to load manifest file: " + exportId, e);
+        }
+
+    }
+
+    @Transactional
+    public void readStoredExport(OutputStream out, String exportId) {
+        BufferedOutputStream output = null;
+        InputStream input = null;
+        try {
+            Manifest manifest = manifestService.get(exportId);
+            if (manifest == null) {
+                throw new NotFoundException("Unable to find specified manifest by id: " + exportId);
+            }
+            input = manifest.getInputStream();
+            output = new BufferedOutputStream(out);
+            int data = input.read();
+            while (data != -1)
+            {
+                output.write(data);
+                data = input.read();
+            }
+            output.flush();
+        }
+        catch (ManifestServiceException e) {
+            throw new ExporterException("Unable to find manifest by id: " + exportId, e);
+        }
+        catch (IOException e) {
+            throw new ExporterException("Unable to get manifest: " + exportId, e);
+        }
+        finally {
+            IOUtils.closeQuietly(output);
+            IOUtils.closeQuietly(input);
         }
     }
 }

@@ -302,7 +302,7 @@ public class ConsumerResourceIntegrationTest extends DatabaseTestFixture {
         setupPrincipal(owner, Access.READ_ONLY);
         securityInterceptor.enable();
         consumerResource.exportData(mock(HttpServletResponse.class),
-            consumer.getUuid(), null, null, null);
+            consumer.getUuid(), null, null, null, false);
         // if no exception, we're good
     }
 

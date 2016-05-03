@@ -87,8 +87,8 @@ class SyncUtils {
         return (tmp);
     }
 
-    File fileFromBytes(byte[] archiveData) {
-        return null;
+    File tempFileReference(String name) throws IOException {
+        return new File(baseDir, name);
     }
 
 }

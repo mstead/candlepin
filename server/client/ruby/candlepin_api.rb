@@ -495,6 +495,21 @@ class Candlepin
     end
   end
 
+  def export_consumer_async(uuid=nil, params={})
+    uuid = @uuid unless uuid
+    path = "/consumers/#{uuid}/export"
+    path += "?async=true&"
+    path += "cdn_label=#{params[:cdn_label]}&" if params[:cdn_label]
+    path += "webapp_prefix=#{params[:webapp_prefix]}&" if params[:webapp_prefix]
+    path += "api_url=#{params[:api_url]}&" if params[:api_url]
+
+    begin
+      get(path)
+    rescue Exception => e
+      puts e.response
+    end
+  end
+
   def get_entitlement(entitlement_id)
     get("/entitlements/#{entitlement_id}")
   end

@@ -14,8 +14,6 @@
  */
 package org.candlepin.sync;
 
-import java.io.IOException;
-
 /**
  * ExportCreationException
  */
@@ -23,7 +21,7 @@ public class ExportCreationException extends SyncException {
 
     private static final long serialVersionUID = 1126642027355176388L;
 
-    public ExportCreationException(String msg, IOException e) {
+    public ExportCreationException(String msg, Throwable e) {
         super(msg, e);
     }
 
