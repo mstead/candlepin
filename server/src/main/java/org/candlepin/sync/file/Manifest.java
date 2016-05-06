@@ -20,19 +20,21 @@ import java.io.InputStream;
 public class Manifest {
 
     private String id;
+    private String metaId;
     private InputStream inputStream;
 
-    public Manifest(String id, InputStream inputStream) {
+    public Manifest(String id, String metaId, InputStream inputStream) {
         this.id = id;
         this.inputStream = inputStream;
-    }
-
-    public void setId(String id) {
-        this.id = id;
+        this.metaId = metaId;
     }
 
     public String getId() {
         return id;
+    }
+
+    public String getMetaId() {
+        return metaId;
     }
 
     public InputStream getInputStream() {

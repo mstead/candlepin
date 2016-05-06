@@ -30,7 +30,7 @@ public class DBManifestService implements ManifestService {
             if (file == null) {
                 return null;
             }
-            return new Manifest(file.getId(), file.getFileData().getBinaryStream());
+            return new Manifest(file.getId(), file.getMetaId(), file.getFileData().getBinaryStream());
         }
         catch (SQLException e) {
             throw new ManifestServiceException("Unable to load manifest data", e);

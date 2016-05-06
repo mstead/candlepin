@@ -33,8 +33,6 @@ public interface ManifestService {
      * a unique identifier such as a database entity ID, or a file path.
      *
      * @param id the id of the target manifest.
-     * @param metaId an additional ID that can be used by an implementation to
-     *               help identify a file.
      * @return a {@link Manifest} matching the id, null otherwise.
      */
     Manifest get(String id) throws ManifestServiceException;

@@ -1822,17 +1822,22 @@ public class ConsumerResource {
     @GET
     @Produces("application/zip")
     @Path("{consumer_uuid}/export/{export_id}")
-    public Response downloadExistingExport(
+    public void downloadExistingExport(
         @Context HttpServletResponse response,
         @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
         @PathParam("export_id") String exportId) {
+
+        NotFoundException toThrow = new NotFoundException(
+            i18n.tr("The specified file does not exist, or can not be accessed."));
+
         Consumer consumer = consumerCurator.verifyAndLookupConsumer(consumerUuid);
         if (consumer.getType() == null ||
-            !consumer.getType().isManifest()) {
-            throw new ForbiddenException(
-                i18n.tr("Invalid consumer specified for manifest download. ''{0}''.", consumerUuid));
+                !consumer.getType().isManifest()) {
+            log.error("Invalid consumer type specified for the manifest download");
+            throw toThrow;
         }
-        // FIXME There is no linkage here b/w consumer <-> manifest.
+
+        Exception ex = null;
         try {
             // The response for this request is formulated a little different for this
             // file download. In order to stream the results from the DB to the client
@@ -1844,12 +1849,20 @@ public class ConsumerResource {
             //       manually.
             response.setContentType("application/zip");
             response.setHeader("Content-Disposition", "attachment; filename=" + consumer.getUuid() +
-                "-manifest.zip");
-            exporter.readStoredExport(response.getOutputStream(), exportId);
-            return Response.ok().build();
+                    "-manifest.zip");
+            exporter.readStoredExport(exportId, consumer, response.getOutputStream());
         }
-        catch (IOException e) {
-            throw new InternalServerErrorException(e);
+        catch (Exception e) {
+            ex = e;
+        }
+
+        if (ex != null) {
+            log.error("Manifest download failed.", ex);
+            // Reset the response data so that a json response can be returned,
+            // by RestEasy.
+            response.setContentType("text/json");
+            response.setHeader("Content-Disposition", "");
+            throw toThrow;
         }
     }
 

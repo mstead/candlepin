@@ -15,6 +15,7 @@
 package org.candlepin.sync;
 
 import org.candlepin.common.config.Configuration;
+import org.candlepin.common.exceptions.BadRequestException;
 import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.common.util.VersionUtil;
 import org.candlepin.config.ConfigProperties;
@@ -685,7 +686,7 @@ public class Exporter {
     }
 
     @Transactional
-    public void readStoredExport(OutputStream out, String exportId) {
+    public void readStoredExport(String exportId, Consumer sourceConsumer, OutputStream out) {
         BufferedOutputStream output = null;
         InputStream input = null;
         try {
@@ -693,6 +694,12 @@ public class Exporter {
             if (manifest == null) {
                 throw new NotFoundException("Unable to find specified manifest by id: " + exportId);
             }
+
+            if (!sourceConsumer.getUuid().equals(manifest.getMetaId())) {
+                throw new BadRequestException("Could not validate export against specifed consumer: " +
+                    sourceConsumer.getUuid());
+            }
+
             input = manifest.getInputStream();
             output = new BufferedOutputStream(out);
             int data = input.read();
@@ -709,9 +716,9 @@ public class Exporter {
         catch (IOException e) {
             throw new ExporterException("Unable to get manifest: " + exportId, e);
         }
-        finally {
-            IOUtils.closeQuietly(output);
-            IOUtils.closeQuietly(input);
-        }
+//        finally {
+//            IOUtils.closeQuietly(output);
+//            IOUtils.closeQuietly(input);
+//        }
     }
 }
