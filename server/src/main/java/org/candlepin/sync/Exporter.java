@@ -180,13 +180,27 @@ public class Exporter {
 
     public ExportResult generateAndStoreExport(Consumer consumer, String cdnKey, String webAppPrefix,
         String apiUrl) throws ExportCreationException {
+        File export = null;
         try {
-            File export = getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
+            export = getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
             String fileId = manifestService.storeExport(export, consumer);
             return new ExportResult(consumer, fileId);
         }
         catch (ManifestServiceException e) {
             throw new ExportCreationException("Unable to create export archive", e);
+        }
+        finally {
+            // We no longer need the export work directory since the archive has been saved in the DB.
+            if (export != null) {
+                File workDir = export.getParentFile();
+                try {
+                    FileUtils.deleteDirectory(workDir);
+                }
+                catch (IOException ioe) {
+                    // It'll get cleaned up by the ExportCleaner if it couldn't
+                    // be deleted for some reason.
+                }
+            }
         }
     }
 
@@ -699,6 +713,18 @@ public class Exporter {
         }
         catch (IOException e) {
             throw new ExporterException("Unable to get manifest: " + exportId, e);
+        }
+    }
+
+    public void deleteStoredExport(String id) {
+        try {
+            log.info("Deleting stored export file: {}", id);
+            manifestService.delete(id);
+        }
+        catch (Exception e) {
+            // Just log any exception here. This will eventually get cleaned up by
+            // a cleaner job.
+            log.warn("Could not delete export file by id: {}", id, e);
         }
     }
 }

@@ -1851,6 +1851,9 @@ public class ConsumerResource {
             response.setHeader("Content-Disposition", "attachment; filename=" + consumer.getUuid() +
                     "-manifest.zip");
             exporter.readStoredExport(exportId, consumer, response.getOutputStream());
+
+            // On successful manifest read, delete the record.
+            exporter.deleteStoredExport(exportId);
         }
         catch (Exception e) {
             ex = e;
