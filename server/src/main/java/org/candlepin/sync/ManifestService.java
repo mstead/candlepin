@@ -61,4 +61,13 @@ public interface ManifestService {
      */
     String storeExport(File exportFile, Consumer distributor) throws ManifestServiceException;
 
+    /**
+     * Deletes all expired export files
+     *
+     * @param maxAge the maximum age of the file in minutes. A negative value
+     *               indicates no expiry.
+     * @return the number of expired exports that were deleted.
+     */
+    int deleteExpiredExports(int maxAgeInMinutes) throws ManifestServiceException;
+
 }

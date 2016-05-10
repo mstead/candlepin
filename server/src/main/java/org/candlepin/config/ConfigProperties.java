@@ -176,6 +176,9 @@ public class ConfigProperties {
         UnmappedGuestEntitlementCleanerJob.class.getName(),
     };
 
+    public static final String EXPORT_CLEANER_JOB_MAX_AGE_IN_MINUTES =
+        "pinsetter.org.candlepin.pinsetter.tasks.ExportCleaner.max_age_in_minutes";
+
     public static final String ENTITLER_JOB_THROTTLE =
         "pinsetter." + EntitlerJob.class.getName() + ".throttle";
 
@@ -183,6 +186,7 @@ public class ConfigProperties {
         "candlepin.batch.bind.number_of_pools_limit";
 
     public static final String SYNC_WORK_DIR = "candlepin.sync.work_dir";
+
     public static final String CONSUMER_FACTS_MATCHER = "candlepin.consumer.facts.match_regex";
 
     public static final String SHARD_USERNAME = "candlepin.shard.username";
@@ -385,6 +389,10 @@ public class ConfigProperties {
                 // Default 20 minutes
                 this.put(PINSETTER_ASYNC_JOB_TIMEOUT, Integer.toString(1200));
                 this.put(PINSETTER_MAX_RETRIES, Integer.toString(PINSETTER_MAX_RETRIES_DEFAULT));
+
+                // ExportCleaner job config
+                // Max Age: 24 hours
+                this.put(EXPORT_CLEANER_JOB_MAX_AGE_IN_MINUTES, "1440");
             }
         };
 

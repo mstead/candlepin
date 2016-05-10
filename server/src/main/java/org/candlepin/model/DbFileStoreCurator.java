@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.Blob;
+import java.util.Date;
 
 import javax.persistence.Query;
 
@@ -33,8 +34,14 @@ public class DbFileStoreCurator extends AbstractHibernateCurator<DbStoredFile> {
         Query q = getEntityManager().createQuery("delete from DbStoredFile where id=:id");
         q.setParameter("id", id);
         q.executeUpdate();
-        // TODO Is this needed?
-        flush();
+    }
+
+    @Transactional
+    public int deleteOlderThan(Date maxDate, CandlepinFileType type) {
+        Query q = getEntityManager().createQuery("delete from DbStoredFile where cp_file_type = :type and created < :max_date");
+        q.setParameter("max_date", maxDate);
+        q.setParameter("type", type.toString());
+        return q.executeUpdate();
     }
 
 }

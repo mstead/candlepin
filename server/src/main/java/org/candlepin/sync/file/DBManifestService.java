@@ -11,6 +11,7 @@ import org.candlepin.model.DbStoredFile.CandlepinFileType;
 import org.candlepin.model.Owner;
 import org.candlepin.sync.ManifestService;
 import org.candlepin.sync.ManifestServiceException;
+import org.candlepin.util.Util;
 
 import com.google.inject.Inject;
 
@@ -60,6 +61,16 @@ public class DBManifestService implements ManifestService {
         catch (IOException e) {
             throw new ManifestServiceException(e);
         }
+    }
+
+    @Override
+    public int deleteExpiredExports(int maxAgeInMinutes) throws ManifestServiceException {
+        // If max age is negative, exports do not expire.
+        if (maxAgeInMinutes < 0) {
+            return 0;
+        }
+        return curator.deleteOlderThan(Util.addMinutesToDt(maxAgeInMinutes * -1),
+            CandlepinFileType.MANIFEST_EXPORT);
     }
 
 }

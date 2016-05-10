@@ -16,6 +16,8 @@ package org.candlepin.pinsetter.tasks;
 
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.sync.ManifestService;
+import org.candlepin.sync.ManifestServiceException;
 import org.candlepin.util.Util;
 
 import com.google.inject.Inject;
@@ -41,26 +43,39 @@ import java.util.Date;
 public class ExportCleaner extends KingpinJob {
 
     public static final String DEFAULT_SCHEDULE = "0 0 12 * * ?";
-    private Configuration config;
     private static Logger log = LoggerFactory.getLogger(ExportCleaner.class);
 
+    private Configuration config;
+    private ManifestService manifestService;
+
     @Inject
-    public ExportCleaner(Configuration config) {
+    public ExportCleaner(Configuration config, ManifestService manifestService) {
         this.config = config;
+        this.manifestService = manifestService;
     }
 
     @Override
     public void toExecute(JobExecutionContext arg0) throws JobExecutionException {
         File baseDir = new File(config.getString(ConfigProperties.SYNC_WORK_DIR));
-        Date deadLineDt = Util.yesterday();
+        int maxAgeInMinutes = config.getInt(ConfigProperties.EXPORT_CLEANER_JOB_MAX_AGE_IN_MINUTES);
 
+        log.info("Export Data Cleaner run:");
+        log.info("Max Age: {} mins", maxAgeInMinutes);
+        cleanupExportWorkDirs(baseDir, maxAgeInMinutes);
+        manifestServiceCleanup(maxAgeInMinutes);
+    }
+
+    private void cleanupExportWorkDirs(File baseDir, int maxAgeInMinutes) {
         long dirCount = 0;
         long delCount = 0;
         long leftCount = 0;
+
+        Date cutOff = Util.addMinutesToDt(maxAgeInMinutes * -1);
+
         if (baseDir.listFiles() != null) {
             dirCount =  baseDir.listFiles().length;
             for (File f : baseDir.listFiles()) {
-                if (f.lastModified() < deadLineDt.getTime()) {
+                if (f.lastModified() < cutOff.getTime()) {
                     try {
                         FileUtils.deleteDirectory(f);
                         delCount++;
@@ -75,9 +90,21 @@ public class ExportCleaner extends KingpinJob {
                 }
             }
         }
-        log.info("Export Data Cleaner run:");
         log.info("Begining directory count: " + dirCount);
         log.info("Directories deleted: " + delCount);
         log.info("Directories remaining: " + leftCount);
+    }
+
+    private void manifestServiceCleanup(int maxAgeInMinutes) {
+        try {
+            int deleteCount = manifestService.deleteExpiredExports(maxAgeInMinutes);
+            deleteCount = deleteCount < 0 ? 0 : deleteCount;
+            log.info("Manifest service deleted {} files.", deleteCount);
+        }
+        catch (ManifestServiceException e) {
+            // Just log and carry on. Any exception here would generally be
+            // resolved next time the cleanup would be run. i.e service down.
+            log.warn("Unable to clean up manifest files", e);
+        }
     }
 }

@@ -669,23 +669,6 @@ public class Exporter {
     }
 
     @Transactional
-    public File getStoredExport(String exportId) {
-        try {
-            Manifest manifest = manifestService.get(exportId);
-            File tmpFile = new SyncUtils(config).tempFileReference("export_dl");
-            Files.copy(manifest.getInputStream(), tmpFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            return tmpFile;
-        }
-        catch (ManifestServiceException e) {
-            throw new ExporterException("Unable to find manifest by id: " + exportId, e);
-        }
-        catch (IOException e) {
-            throw new ExporterException("Unable to load manifest file: " + exportId, e);
-        }
-
-    }
-
-    @Transactional
     public void readStoredExport(String exportId, Consumer sourceConsumer, OutputStream out) {
         BufferedOutputStream output = null;
         InputStream input = null;
@@ -700,6 +683,7 @@ public class Exporter {
                     sourceConsumer.getUuid());
             }
 
+            // Input and output streams are expected to be closed by their creators.
             input = manifest.getInputStream();
             output = new BufferedOutputStream(out);
             int data = input.read();
@@ -716,9 +700,5 @@ public class Exporter {
         catch (IOException e) {
             throw new ExporterException("Unable to get manifest: " + exportId, e);
         }
-//        finally {
-//            IOUtils.closeQuietly(output);
-//            IOUtils.closeQuietly(input);
-//        }
     }
 }
