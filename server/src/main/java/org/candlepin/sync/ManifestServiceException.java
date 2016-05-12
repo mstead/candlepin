@@ -1,6 +1,6 @@
 package org.candlepin.sync;
 
-public class ManifestServiceException extends Exception {
+public class ManifestServiceException extends RuntimeException {
 
     public ManifestServiceException(String message) {
         super(message);

@@ -97,7 +97,7 @@ import org.candlepin.service.SubscriptionServiceAdapter;
 import org.candlepin.service.UserServiceAdapter;
 import org.candlepin.sync.ExportCreationException;
 import org.candlepin.sync.Exporter;
-import org.candlepin.sync.file.Manifest;
+import org.candlepin.sync.file.ManifestFile;
 import org.candlepin.util.Util;
 import org.hibernate.tool.hbm2x.ExporterException;
 

@@ -53,9 +53,9 @@ public class ExportJob extends UniqueByEntityJob {
         try {
             ExportResult result = exporter.generateAndStoreExport(consumer, cdnLabel, webAppPrefix, apiUrl);
             context.setResult(result);
+            log.info("Async export complete.");
         }
-        catch (ExportCreationException e) {
-            // TODO Delete the generated archive on Failure.
+        catch (Exception e) {
             throw new JobExecutionException(e.getMessage(), e, false);
         }
     }

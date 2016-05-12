@@ -3,19 +3,25 @@ package org.candlepin.sync.file;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Set;
 
 import org.candlepin.model.Consumer;
 import org.candlepin.model.DbFileStoreCurator;
 import org.candlepin.model.DbStoredFile;
-import org.candlepin.model.DbStoredFile.CandlepinFileType;
+import org.candlepin.model.ManifestRecord.ManifestRecordType;
 import org.candlepin.model.Owner;
-import org.candlepin.sync.ManifestService;
+import org.candlepin.sync.ManifestFileService;
 import org.candlepin.sync.ManifestServiceException;
 import org.candlepin.util.Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 
-public class DBManifestService implements ManifestService {
+public class DBManifestService implements ManifestFileService {
+
+    private static Logger log = LoggerFactory.getLogger(DBManifestService.class);
 
     private DbFileStoreCurator curator;
 
@@ -25,13 +31,13 @@ public class DBManifestService implements ManifestService {
     }
 
     @Override
-    public Manifest get(String id) throws ManifestServiceException {
+    public ManifestFile get(String id) throws ManifestServiceException {
         try {
             DbStoredFile file = curator.findFile(id);
             if (file == null) {
                 return null;
             }
-            return new Manifest(file.getId(), file.getMetaId(), file.getFileData().getBinaryStream());
+            return new ManifestFile(file.getId(), file.getFileName(), file.getFileData().getBinaryStream());
         }
         catch (SQLException e) {
             throw new ManifestServiceException("Unable to load manifest data", e);
@@ -39,23 +45,14 @@ public class DBManifestService implements ManifestService {
     }
 
     @Override
-    public void delete(String id) throws ManifestServiceException {
-        curator.deleteById(id);
+    public boolean delete(String id) throws ManifestServiceException {
+        return curator.deleteById(id);
     }
 
     @Override
-    public String storeImport(File manifestFile, Owner owner) throws ManifestServiceException {
-        return store(manifestFile, CandlepinFileType.MANIFEST_IMPORT, owner.getKey());
-    }
-
-    @Override
-    public String storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
-        return store(exportFile, CandlepinFileType.MANIFEST_EXPORT, distributor.getUuid());
-    }
-
-    private String store(File toStore, CandlepinFileType type, String metaId) throws ManifestServiceException {
+    public String store(File toStore) throws ManifestServiceException {
         try {
-            DbStoredFile stored = curator.createFile(toStore, type, metaId);
+            DbStoredFile stored = curator.createFile(toStore);
             return stored.getId();
         }
         catch (IOException e) {
@@ -64,13 +61,8 @@ public class DBManifestService implements ManifestService {
     }
 
     @Override
-    public int deleteExpiredExports(int maxAgeInMinutes) throws ManifestServiceException {
-        // If max age is negative, exports do not expire.
-        if (maxAgeInMinutes < 0) {
-            return 0;
-        }
-        return curator.deleteOlderThan(Util.addMinutesToDt(maxAgeInMinutes * -1),
-            CandlepinFileType.MANIFEST_EXPORT);
+    public List<String> delete(Set<String> fileIds) {
+        return curator.deleteByIds(fileIds);
     }
 
 }

@@ -26,6 +26,7 @@ import org.candlepin.auth.Principal;
 import org.candlepin.common.config.MapConfiguration;
 import org.candlepin.config.CandlepinCommonTestConfig;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.guice.PrincipalProvider;
 import org.candlepin.model.CdnCurator;
 import org.candlepin.model.CertificateSerial;
@@ -105,7 +106,7 @@ public class ExporterTest {
     private CandlepinCommonTestConfig config;
     private ExportRules exportRules;
     private PrincipalProvider pprov;
-    private ManifestService manifestService;
+    private ManifestManager manifestManager;
 
     @Before
     public void setUp() {
@@ -130,7 +131,7 @@ public class ExporterTest {
         dve = new DistributorVersionExporter();
         cdnc = mock(CdnCurator.class);
         cdne = new CdnExporter();
-        manifestService = mock(ManifestService.class);
+        manifestManager = mock(ManifestManager.class);
 
         when(exportRules.canExport(any(Entitlement.class))).thenReturn(Boolean.TRUE);
     }
@@ -236,7 +237,7 @@ public class ExporterTest {
 
         // FINALLY test this badboy
         Exporter e = new Exporter(ctc, me, ce, cte, re, ece, ecsa, pe, psa,
-            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestService);
+            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestManager);
 
         File export = e.getFullExport(consumer);
 
@@ -289,7 +290,7 @@ public class ExporterTest {
             .thenReturn("publicKey".getBytes());
 
         Exporter e = new Exporter(ctc, me, ce, cte, re, ece, ecsa, pe, psa,
-            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestService);
+            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestManager);
 
         e.getFullExport(consumer);
     }
@@ -326,7 +327,7 @@ public class ExporterTest {
 
         // FINALLY test this badboy
         Exporter e = new Exporter(ctc, me, ce, cte, re, ece, ecsa, pe, psa,
-            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestService);
+            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestManager);
         File export = e.getFullExport(consumer);
 
         // VERIFY
@@ -372,7 +373,7 @@ public class ExporterTest {
 
         // FINALLY test this badboy
         Exporter e = new Exporter(ctc, me, ce, cte, re, ece, ecsa, pe, psa,
-            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestService);
+            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestManager);
         File export = e.getFullExport(consumer);
 
         // VERIFY
@@ -419,7 +420,7 @@ public class ExporterTest {
 
         // FINALLY test this badboy
         Exporter e = new Exporter(ctc, me, ce, cte, re, ece, ecsa, pe, psa,
-            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestService);
+            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestManager);
         File export = e.getFullExport(consumer);
 
         verifyContent(export, "export/consumer.json",
@@ -473,7 +474,7 @@ public class ExporterTest {
 
         // FINALLY test this badboy
         Exporter e = new Exporter(ctc, me, ce, cte, re, ece, ecsa, pe, psa,
-            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestService);
+            pce, ec, ee, pki, config, exportRules, pprov, dvc, dve, cdnc, cdne, manifestManager);
         File export = e.getFullExport(consumer);
 
         verifyContent(export, "export/distributor_version/test-dist-ver.json",

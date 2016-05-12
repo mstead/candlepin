@@ -16,8 +16,7 @@ package org.candlepin.pinsetter.tasks;
 
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
-import org.candlepin.sync.ManifestService;
-import org.candlepin.sync.ManifestServiceException;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.util.Util;
 
 import com.google.inject.Inject;
@@ -46,12 +45,12 @@ public class ExportCleaner extends KingpinJob {
     private static Logger log = LoggerFactory.getLogger(ExportCleaner.class);
 
     private Configuration config;
-    private ManifestService manifestService;
+    private ManifestManager manifestManager;
 
     @Inject
-    public ExportCleaner(Configuration config, ManifestService manifestService) {
+    public ExportCleaner(Configuration config, ManifestManager manifestService) {
         this.config = config;
-        this.manifestService = manifestService;
+        this.manifestManager = manifestService;
     }
 
     @Override
@@ -96,15 +95,8 @@ public class ExportCleaner extends KingpinJob {
     }
 
     private void manifestServiceCleanup(int maxAgeInMinutes) {
-        try {
-            int deleteCount = manifestService.deleteExpiredExports(maxAgeInMinutes);
-            deleteCount = deleteCount < 0 ? 0 : deleteCount;
-            log.info("Manifest service deleted {} files.", deleteCount);
-        }
-        catch (ManifestServiceException e) {
-            // Just log and carry on. Any exception here would generally be
-            // resolved next time the cleanup would be run. i.e service down.
-            log.warn("Unable to clean up manifest files", e);
-        }
+        int deleted = manifestManager.cleanup(maxAgeInMinutes);
+        log.info("Deleted from file service: {}", deleted);
+        // TODO: Delete rogue ManifestRecords
     }
 }

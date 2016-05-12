@@ -19,6 +19,7 @@ import org.candlepin.common.exceptions.BadRequestException;
 import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.common.util.VersionUtil;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.guice.PrincipalProvider;
 import org.candlepin.model.Cdn;
 import org.candlepin.model.CdnCurator;
@@ -31,6 +32,7 @@ import org.candlepin.model.Entitlement;
 import org.candlepin.model.EntitlementCertificate;
 import org.candlepin.model.EntitlementCurator;
 import org.candlepin.model.IdentityCertificate;
+import org.candlepin.model.ManifestRecord;
 import org.candlepin.model.Pool;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductCertificate;
@@ -39,7 +41,7 @@ import org.candlepin.pki.PKIUtility;
 import org.candlepin.policy.js.export.ExportRules;
 import org.candlepin.service.EntitlementCertServiceAdapter;
 import org.candlepin.service.ProductServiceAdapter;
-import org.candlepin.sync.file.Manifest;
+import org.candlepin.sync.file.ManifestFile;
 import org.hibernate.tool.hbm2x.ExporterException;
 import org.quartz.JobDetail;
 
@@ -48,7 +50,6 @@ import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,9 +63,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -102,7 +100,7 @@ public class Exporter {
     private Configuration config;
     private ExportRules exportRules;
     private PrincipalProvider principalProvider;
-    private ManifestService manifestService;
+    private ManifestManager manifestManager;
 
     private static final String LEGACY_RULES_FILE = "/rules/default-rules.js";
 
@@ -118,7 +116,7 @@ public class Exporter {
         DistributorVersionExporter distVerExporter,
         CdnCurator cdnCurator,
         CdnExporter cdnExporter,
-        ManifestService manifestService) {
+        ManifestManager manifestManager) {
 
         this.consumerTypeCurator = consumerTypeCurator;
 
@@ -141,7 +139,7 @@ public class Exporter {
         this.distVerExporter = distVerExporter;
         this.cdnCurator = cdnCurator;
         this.cdnExporter = cdnExporter;
-        this.manifestService = manifestService;
+        this.manifestManager = manifestManager;
 
         mapper = SyncUtils.getObjectMapper(this.config);
     }
@@ -183,8 +181,8 @@ public class Exporter {
         File export = null;
         try {
             export = getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
-            String fileId = manifestService.storeExport(export, consumer);
-            return new ExportResult(consumer, fileId);
+            ManifestRecord manifestRecord = manifestManager.storeExport(export, consumer);
+            return new ExportResult(consumer, manifestRecord.getId());
         }
         catch (ManifestServiceException e) {
             throw new ExportCreationException("Unable to create export archive", e);
@@ -359,7 +357,7 @@ public class Exporter {
         try {
             writer = new FileWriter(file);
             Meta m = new Meta(getVersion(), new Date(),
-                principalProvider.get().getPrincipalName(),
+                principalProvider.get().getName(),
                 null, cdnKey);
             meta.export(mapper, writer, m);
         }
@@ -683,22 +681,27 @@ public class Exporter {
     }
 
     @Transactional
-    public void readStoredExport(String exportId, Consumer sourceConsumer, OutputStream out) {
+    public void readStoredExport(String exportId, Consumer exportedConsumer, OutputStream out) {
         BufferedOutputStream output = null;
         InputStream input = null;
         try {
-            Manifest manifest = manifestService.get(exportId);
+            ManifestRecord manifest = manifestManager.get(exportId);
             if (manifest == null) {
                 throw new NotFoundException("Unable to find specified manifest by id: " + exportId);
             }
 
-            if (!sourceConsumer.getUuid().equals(manifest.getMetaId())) {
+            if (!exportedConsumer.getUuid().equals(manifest.getTargetId())) {
                 throw new BadRequestException("Could not validate export against specifed consumer: " +
-                    sourceConsumer.getUuid());
+                    exportedConsumer.getUuid());
             }
 
-            // Input and output streams are expected to be closed by their creators.
-            input = manifest.getInputStream();
+            // NOTE: Input and output streams are expected to be closed by their creators.
+            ManifestFile manifestFile = manifestManager.getFile(manifest);
+            if (manifestFile == null) {
+                throw new RuntimeException("Could not load export. Manifest file not found.");
+            }
+
+            input = manifestFile.getInputStream();
             output = new BufferedOutputStream(out);
             int data = input.read();
             while (data != -1)
@@ -719,7 +722,7 @@ public class Exporter {
     public void deleteStoredExport(String id) {
         try {
             log.info("Deleting stored export file: {}", id);
-            manifestService.delete(id);
+            manifestManager.delete(id);
         }
         catch (Exception e) {
             // Just log any exception here. This will eventually get cleaned up by

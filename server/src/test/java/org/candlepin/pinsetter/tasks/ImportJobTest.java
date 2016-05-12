@@ -33,7 +33,7 @@ import org.candlepin.sync.ConflictOverrides;
 import org.candlepin.sync.Importer;
 import org.candlepin.sync.Importer.Conflict;
 import org.candlepin.sync.ImporterException;
-import org.candlepin.sync.ManifestService;
+import org.candlepin.sync.ManifestFileService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,7 +50,7 @@ public class ImportJobTest {
     @Mock private Importer importer;
     @Mock private OwnerCurator ownerCurator;
     @Mock private JobExecutionContext ctx;
-    @Mock private ManifestService manifestService;
+    @Mock private ManifestFileService manifestService;
 
     private ImportJob job;
     private Owner owner;

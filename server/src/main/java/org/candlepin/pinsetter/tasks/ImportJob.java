@@ -28,7 +28,7 @@ import org.candlepin.pinsetter.core.model.JobStatus;
 import org.candlepin.sync.ConflictOverrides;
 import org.candlepin.sync.Importer;
 import org.candlepin.sync.ImporterException;
-import org.candlepin.sync.ManifestService;
+import org.candlepin.sync.ManifestFileService;
 import org.candlepin.sync.ManifestServiceException;
 import org.candlepin.sync.SyncDataFormatException;
 import org.candlepin.util.Util;
@@ -55,10 +55,10 @@ public class ImportJob extends UniqueByEntityJob {
 
     private Importer importer;
     private OwnerCurator ownerCurator;
-    private ManifestService manifestService;
+    private ManifestFileService manifestService;
 
     @Inject
-    public ImportJob(Importer importer, OwnerCurator ownerCurator, ManifestService manifestService) {
+    public ImportJob(Importer importer, OwnerCurator ownerCurator, ManifestFileService manifestService) {
         this.importer = importer;
         this.ownerCurator = ownerCurator;
         this.manifestService = manifestService;

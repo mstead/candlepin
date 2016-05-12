@@ -17,24 +17,24 @@ package org.candlepin.sync.file;
 
 import java.io.InputStream;
 
-public class Manifest {
+public class ManifestFile {
 
     private String id;
-    private String metaId;
+    private String name;
     private InputStream inputStream;
 
-    public Manifest(String id, String metaId, InputStream inputStream) {
+    public ManifestFile(String id, String name, InputStream inputStream) {
         this.id = id;
         this.inputStream = inputStream;
-        this.metaId = metaId;
+        this.name = name;
     }
 
     public String getId() {
         return id;
     }
 
-    public String getMetaId() {
-        return metaId;
+    public String getName() {
+        return name;
     }
 
     public InputStream getInputStream() {
