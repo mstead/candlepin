@@ -27,6 +27,7 @@ import com.google.inject.Provider;
 import com.google.inject.persist.Transactional;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.hibernate.CacheMode;
 import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.hibernate.SQLQuery;
@@ -576,10 +577,14 @@ public abstract class AbstractHibernateCurator<E extends Persisted> {
             Query query = this.getEntityManager()
                 .createQuery(hql.toString())
                 .setLockMode(LockModeType.PESSIMISTIC_WRITE);
-
+            
             for (List<String> block : Iterables.partition(ids, IN_OPERATOR_BLOCK_SIZE)) {
                 query.setParameter("ids", block);
                 result.addAll((List<E>) query.getResultList());
+            }
+            
+            for (E res : result){
+                getEntityManager().refresh(res);
             }
         }
 
