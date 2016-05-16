@@ -150,7 +150,7 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
         }
 
         List<Pool> results = createSecureCriteria()
-            .add(unboundedInCriterion("sourceEntitlement", ents))
+            .add(CPRestrictions.in("sourceEntitlement", ents))
             .setFetchMode("entitlements", FetchMode.JOIN)
             .list();
 
@@ -442,7 +442,7 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
 
     private Criteria criteriaToSelectEntitlementForPools(List<Pool> entitlementPools) {
         return this.currentSession().createCriteria(Entitlement.class)
-                .add(unboundedInCriterion("pool", entitlementPools));
+                .add(CPRestrictions.in("pool", entitlementPools));
     }
 
     /**
@@ -476,7 +476,7 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
     public List<Pool> lookupBySubscriptionIds(Collection<String> subIds) {
         return createSecureCriteria()
             .createAlias("sourceSubscription", "sourceSub")
-            .add(unboundedInCriterion("sourceSub.subscriptionId", subIds))
+            .add(CPRestrictions.in("sourceSub.subscriptionId", subIds))
             .addOrder(Order.asc("id"))
             .list();
     }
@@ -748,7 +748,8 @@ public class PoolCurator extends AbstractHibernateCurator<Pool> {
             .add(Restrictions.eq("ss.sourceConsumer", consumer))
             .add(Restrictions.and(
                 Restrictions.isNotNull("ss.sourceStackId"),
-                unboundedInCriterion("ss.sourceStackId", stackIds)));
+                CPRestrictions.in("ss.sourceStackId", stackIds))
+            );
 
         return (List<Pool>) getPools.list();
     }
