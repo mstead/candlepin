@@ -574,34 +574,52 @@ public class CandlepinPoolManager implements PoolManager {
         regenerateCertificatesByEntIds(updatedMasterPools, lazy);
     }
 
-    @Transactional
+    /**
+     * Deletes all known expired pools. The deletion of expired pools also triggers entitlement
+     * revocation and consumer compliance recalculation.
+     * <p></p>
+     * This method will delete pools in blocks, using a new transaction for each block unless a
+     * transaction was already started before this method is called.
+     */
     public void cleanupExpiredPools() {
         int count = 0;
         boolean loop = false;
 
         do {
-            List<Pool> pools = poolCurator.listExpiredPools(PoolCurator.EXPIRED_POOL_BLOCK_SIZE);
-            count += pools.size();
+            // This call is run within a new transaction if we're not already in a transaction
+            int blockSize = this.cleanupExpiredPoolsImpl();
+            count += blockSize;
 
-            // TODO: Do we still need this? This bit is incredibly slow.
-            for (Iterator<Pool> pi = pools.iterator(); pi.hasNext();) {
-                Pool pool = pi.next();
-                log.info("Cleaning up expired pool: {} (expired: {})", pool.getId(), pool.getEndDate());
-            }
-
-            // Delete the block of pools
-            this.deletePools(pools);
-
-            // Cleanup memory to try to avoid flooding the heap
-            this.poolCurator.clear();
-
-            loop = pools.size() >= PoolCurator.EXPIRED_POOL_BLOCK_SIZE;
+            loop = blockSize >= PoolCurator.EXPIRED_POOL_BLOCK_SIZE;
         } while (loop);
 
         if (count > 0) {
             log.info("Cleaned up {} expired pools", count);
         }
     }
+
+    /**
+     * Performs the cleanup of a block of expired pools.
+     *
+     * @return
+     *  the number of expired pools deleted as a result of this method
+     */
+    @Transactional
+    private int cleanupExpiredPoolsImpl() {
+        List<Pool> pools = poolCurator.listExpiredPools(PoolCurator.EXPIRED_POOL_BLOCK_SIZE);
+
+        for (Pool pool : pools) {
+            log.info("Cleaning up expired pool: {} (expired: {})", pool.getId(), pool.getEndDate());
+        }
+
+        // Delete the block of pools & flush the results to tell Hibernate to evict the objects
+        // (we hope)
+        this.deletePools(pools);
+        this.poolCurator.flush();
+
+        return pools.size();
+    }
+
 
     private boolean isExpired(Subscription subscription) {
         Date now = new Date();
@@ -1875,7 +1893,7 @@ public class CandlepinPoolManager implements PoolManager {
 
         for (Pool p : pools) {
             if (log.isDebugEnabled()) {
-                log.debug("Deletion of pool {} will cause revocation of the following entitlements: {}.",
+                log.debug("Deletion of pool {} will revoke the following entitlements: {}",
                     p.getId(), getEntIds(p.getEntitlements()));
             }
             entitlementsToRevoke.addAll(p.getEntitlements());
