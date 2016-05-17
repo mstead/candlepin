@@ -960,6 +960,13 @@ public abstract class AbstractHibernateCurator<E extends Persisted> {
                 query.setParameter("ids", block);
                 result.addAll((List<E>) query.getResultList());
             }
+            //In some situations, even after locking the entity we
+            //got stale in the entity e.g. Pool.consumed
+            //This refresh reloads the entity after the lock has
+            //been issued.
+            for (E e : result) {
+                getEntityManager().refresh(e);
+            }
         }
 
         return result;
