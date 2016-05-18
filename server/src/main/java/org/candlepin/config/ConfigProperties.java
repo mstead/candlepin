@@ -25,6 +25,7 @@ import org.candlepin.pinsetter.tasks.ExpiredPoolsJob;
 import org.candlepin.pinsetter.tasks.ExportCleaner;
 import org.candlepin.pinsetter.tasks.ImportRecordJob;
 import org.candlepin.pinsetter.tasks.JobCleaner;
+import org.candlepin.pinsetter.tasks.ManifestCleanerJob;
 import org.candlepin.pinsetter.tasks.SweepBarJob;
 import org.candlepin.pinsetter.tasks.UnmappedGuestEntitlementCleanerJob;
 import org.candlepin.pinsetter.tasks.UnpauseJob;
@@ -172,7 +173,7 @@ public class ConfigProperties {
         ImportRecordJob.class.getName(),
         CancelJobJob.class.getName(), ExpiredPoolsJob.class.getName(),
         UnpauseJob.class.getName(), SweepBarJob.class.getName(),
-        ExportCleaner.class.getName(), ActiveEntitlementJob.class.getName(),
+        ManifestCleanerJob.class.getName(), ActiveEntitlementJob.class.getName(),
         UnmappedGuestEntitlementCleanerJob.class.getName(),
     };
 

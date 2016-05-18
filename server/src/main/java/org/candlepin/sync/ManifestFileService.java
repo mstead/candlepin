@@ -52,6 +52,7 @@ public interface ManifestFileService {
      * Deletes a manifest matching the specified id.
      *
      * @param id the id of the target manifest file.
+     * @return true if the file was deleted, false otherwise.
      */
     boolean delete(String id) throws ManifestServiceException;
 

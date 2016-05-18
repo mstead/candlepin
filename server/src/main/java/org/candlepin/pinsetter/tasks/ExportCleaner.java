@@ -15,21 +15,14 @@
 package org.candlepin.pinsetter.tasks;
 
 import org.candlepin.common.config.Configuration;
-import org.candlepin.config.ConfigProperties;
 import org.candlepin.controller.ManifestManager;
-import org.candlepin.util.Util;
 
 import com.google.inject.Inject;
 
-import org.apache.commons.io.FileUtils;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Date;
 
 /**
  * ExportCleaner
@@ -38,7 +31,14 @@ import java.util.Date;
  * information and resultant zip file. Data that is more that a day old will
  * be expunged.
  *
+ * {@link Deprecated} This job has been deprecated and now does noting. It has
+ * been replaced by the {@link ManifestCleanerJob} and exists as to not break
+ * older deployments.
+ *
+ * @see ManifestCleanerJob
+ *
  */
+@Deprecated
 public class ExportCleaner extends KingpinJob {
 
     public static final String DEFAULT_SCHEDULE = "0 0 12 * * ?";
@@ -55,48 +55,7 @@ public class ExportCleaner extends KingpinJob {
 
     @Override
     public void toExecute(JobExecutionContext arg0) throws JobExecutionException {
-        File baseDir = new File(config.getString(ConfigProperties.SYNC_WORK_DIR));
-        int maxAgeInMinutes = config.getInt(ConfigProperties.EXPORT_CLEANER_JOB_MAX_AGE_IN_MINUTES);
-
-        log.info("Export Data Cleaner run:");
-        log.info("Max Age: {} mins", maxAgeInMinutes);
-        cleanupExportWorkDirs(baseDir, maxAgeInMinutes);
-        manifestServiceCleanup(maxAgeInMinutes);
+        log.warn("ExportCleaner job has been depricated. Please unschedule.");
     }
 
-    private void cleanupExportWorkDirs(File baseDir, int maxAgeInMinutes) {
-        long dirCount = 0;
-        long delCount = 0;
-        long leftCount = 0;
-
-        Date cutOff = Util.addMinutesToDt(maxAgeInMinutes * -1);
-
-        if (baseDir.listFiles() != null) {
-            dirCount =  baseDir.listFiles().length;
-            for (File f : baseDir.listFiles()) {
-                if (f.lastModified() < cutOff.getTime()) {
-                    try {
-                        FileUtils.deleteDirectory(f);
-                        delCount++;
-                    }
-                    catch (IOException io) {
-                        log.error("Unable to delete export directory that is old enough " +
-                            "to delete", io);
-                    }
-                }
-                else {
-                    leftCount++;
-                }
-            }
-        }
-        log.info("Begining directory count: " + dirCount);
-        log.info("Directories deleted: " + delCount);
-        log.info("Directories remaining: " + leftCount);
-    }
-
-    private void manifestServiceCleanup(int maxAgeInMinutes) {
-        int deleted = manifestManager.cleanup(maxAgeInMinutes);
-        log.info("Deleted from file service: {}", deleted);
-        // TODO: Delete rogue ManifestRecords
-    }
 }

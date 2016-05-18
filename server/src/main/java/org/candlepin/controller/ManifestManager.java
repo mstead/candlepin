@@ -147,9 +147,8 @@ public class ManifestManager {
         // If this fails, we will end up with manifest records that have broken
         // file references, to the service, since they were deleted above. There isn't
         // much we can do about this here since the file service could be on another
-        // system and we can't really roll it back. For this reason, the ExportCleaner
-        // job will delete any rogue ManifestRecords for us.
-        // TODO Implement this.
+        // system and we can't really roll it back. For this reason, the ManifestCleanerJob
+        // will delete any rogue ManifestRecords for us.
         manifestRecordCurator.bulkDelete(toDelete);
         return toDelete.size();
     }
