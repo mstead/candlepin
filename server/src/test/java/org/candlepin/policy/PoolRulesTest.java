@@ -18,6 +18,8 @@ import static org.junit.Assert.*;
 import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.*;
 
+import org.candlepin.audit.EventFactory;
+import org.candlepin.audit.EventSink;
 import org.candlepin.auth.UserPrincipal;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
@@ -69,6 +71,8 @@ public class PoolRulesTest {
     @Mock private Configuration configMock;
     @Mock private EntitlementCurator entCurMock;
     @Mock private ProductCurator prodCuratorMock;
+    @Mock private EventSink mockEventSink;
+    @Mock private EventFactory mockEventFactory;
 
     private UserPrincipal principal;
     private Owner owner;
@@ -86,7 +90,8 @@ public class PoolRulesTest {
 
         when(configMock.getInt(eq(ConfigProperties.PRODUCT_CACHE_MAX))).thenReturn(100);
 
-        poolRules = new PoolRules(poolManagerMock, configMock, entCurMock, prodCuratorMock);
+        poolRules = new PoolRules(poolManagerMock, configMock, entCurMock, prodCuratorMock,
+            mockEventFactory, mockEventSink);
         principal = TestUtil.createOwnerPrincipal();
         owner = principal.getOwners().get(0);
     }

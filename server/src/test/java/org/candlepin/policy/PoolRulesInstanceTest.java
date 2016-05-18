@@ -15,9 +15,11 @@
 package org.candlepin.policy;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.*;
 
+import org.candlepin.audit.EventFactory;
+import org.candlepin.audit.EventSink;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.controller.PoolManager;
@@ -62,6 +64,8 @@ public class PoolRulesInstanceTest {
     @Mock private Configuration configMock;
     @Mock private EntitlementCurator entCurMock;
     @Mock private ProductCurator prodCuratorMock;
+    @Mock private EventSink mockEventSink;
+    @Mock private EventFactory mockEventFactory;
 
     @Before
     public void setUp() {
@@ -74,7 +78,8 @@ public class PoolRulesInstanceTest {
 
         when(configMock.getInt(eq(ConfigProperties.PRODUCT_CACHE_MAX))).thenReturn(100);
 
-        poolRules = new PoolRules(poolManagerMock, configMock, entCurMock, prodCuratorMock);
+        poolRules = new PoolRules(poolManagerMock, configMock, entCurMock, prodCuratorMock,
+                mockEventFactory, mockEventSink);
     }
 
     @Test

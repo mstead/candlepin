@@ -14,6 +14,12 @@
  */
 package org.candlepin.policy.js.pool;
 
+import org.candlepin.audit.Event;
+import org.candlepin.audit.Event.Target;
+import org.candlepin.audit.Event.Type;
+import org.candlepin.audit.EventBuilder;
+import org.candlepin.audit.EventFactory;
+import org.candlepin.audit.EventSink;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.controller.PoolManager;
@@ -56,15 +62,19 @@ public class PoolRules {
     private Configuration config;
     private EntitlementCurator entCurator;
     private ProductCurator prodCurator;
+    private EventFactory eventFactory;
+    private EventSink sink;
 
     @Inject
     public PoolRules(PoolManager poolManager, Configuration config, EntitlementCurator entCurator,
-        ProductCurator prodCurator) {
+        ProductCurator prodCurator, EventFactory eventFactory, EventSink sink) {
 
         this.poolManager = poolManager;
         this.config = config;
         this.entCurator = entCurator;
         this.prodCurator = prodCurator;
+        this.eventFactory = eventFactory;
+        this.sink = sink;
     }
 
     private long calculateQuantity(long quantity, Product product, String upstreamPoolId) {
@@ -93,7 +103,7 @@ public class PoolRules {
     }
 
     /**
-     * Create any pools that need to be created for the given pool.
+     * Create or update any pools that need to be created for the given pool.
      *
      * In some scenarios, due to attribute changes, pools may need to be created even though
      * pools already exist for the subscription. A list of pre-existing pools for the given
@@ -129,7 +139,7 @@ public class PoolRules {
             pools.add(masterPool);
             log.info("Creating new master pool: {}", masterPool);
         }
-        Pool bonusPool = createBonusPool(masterPool, existingPools);
+        Pool bonusPool = createOrUpdateBonusPool(masterPool, existingPools);
         if (bonusPool != null) {
             pools.add(bonusPool);
         }
@@ -142,38 +152,58 @@ public class PoolRules {
      * temporary use of unmapped guests. (current behavior for any pool with
      * virt_limit)
      */
-    private Pool createBonusPool(Pool masterPool, List<Pool> existingPools) {
+    private Pool createOrUpdateBonusPool(Pool masterPool, List<Pool> existingPools) {
         Map<String, String> attributes = PoolHelper.getFlattenedAttributes(masterPool.getProduct());
         String virtQuantity = getVirtQuantity(attributes.get("virt_limit"), masterPool.getQuantity());
 
         log.info("Checking if bonus pools need to be created for pool: {}", masterPool);
 
-        if (attributes.containsKey("virt_limit") && !hasBonusPool(existingPools) && virtQuantity != null) {
+        if (attributes.containsKey("virt_limit")  && virtQuantity != null) {
+            Pool bonusPool = getBonusPool(existingPools);
+            if (bonusPool == null) {
+                boolean hostLimited = attributes.containsKey("host_limited") &&
+                    attributes.get("host_limited").equals("true");
+                HashMap<String, String> virtAttributes = new HashMap<String, String>();
+                virtAttributes.put("virt_only", "true");
+                virtAttributes.put("pool_derived", "true");
+                virtAttributes.put("physical_only", "false");
+                if (hostLimited || config.getBoolean(ConfigProperties.STANDALONE)) {
+                    virtAttributes.put("unmapped_guests_only", "true");
+                }
+                // Make sure the virt pool does not have a virt_limit,
+                // otherwise this will recurse infinitely
+                virtAttributes.put("virt_limit", "0");
 
-            boolean hostLimited = attributes.containsKey("host_limited") &&
-                attributes.get("host_limited").equals("true");
-            HashMap<String, String> virtAttributes = new HashMap<String, String>();
-            virtAttributes.put("virt_only", "true");
-            virtAttributes.put("pool_derived", "true");
-            virtAttributes.put("physical_only", "false");
-            if (hostLimited || config.getBoolean(ConfigProperties.STANDALONE)) {
-                virtAttributes.put("unmapped_guests_only", "true");
+                // Favor derived products if they are available
+                Product sku = masterPool.getDerivedProduct() != null ? masterPool.getDerivedProduct() :
+                    masterPool.getProduct();
+
+                // Using derived here because only one derived pool is created for
+                // this subscription
+                Pool newBonusPool = PoolHelper.clonePool(masterPool, sku, virtQuantity, virtAttributes,
+                    "derived", prodCurator, null);
+
+                log.info("Creating new derived pool: {}", newBonusPool);
+                return newBonusPool;
             }
-            // Make sure the virt pool does not have a virt_limit,
-            // otherwise this will recurse infinitely
-            virtAttributes.put("virt_limit", "0");
-
-            // Favor derived products if they are available
-            Product sku = masterPool.getDerivedProduct() != null ? masterPool.getDerivedProduct() :
-                masterPool.getProduct();
-
-            // Using derived here because only one derived pool is created for
-            // this subscription
-            Pool bonusPool = PoolHelper.clonePool(masterPool, sku, virtQuantity, virtAttributes, "derived",
-                prodCurator, null);
-
-            log.info("Creating new derived pool: {}", bonusPool);
-            return bonusPool;
+            else {
+                long virtLong = -1L;
+                try {
+                    virtLong = Long.parseLong(virtQuantity);
+                }
+                catch (NumberFormatException pe) {
+                    // it is unlimited, leave it at -1L
+                }
+                if (virtLong != bonusPool.getQuantity()) {
+                    EventBuilder eventBuilder = eventFactory
+                        .getEventBuilder(Target.POOL, Type.MODIFIED)
+                        .setOldEntity(bonusPool);
+                    poolManager.setPoolQuantity(bonusPool, virtLong);
+                    // event for pool update
+                    Event event = eventBuilder.setNewEntity(bonusPool).buildEvent();
+                    sink.queueEvent(event);
+                }
+            }
         }
         return null;
     }
@@ -190,14 +220,18 @@ public class PoolRules {
     }
 
     private boolean hasBonusPool(List<Pool> pools) {
+        return getBonusPool(pools) != null;
+    }
+
+    private Pool getBonusPool(List<Pool> pools) {
         if (pools != null) {
             for (Pool p : pools) {
                 if (p.getSourceSubscription().getSubscriptionSubKey().equals("derived")) {
-                    return true;
+                    return p;
                 }
             }
         }
-        return false;
+        return null;
     }
 
     /*

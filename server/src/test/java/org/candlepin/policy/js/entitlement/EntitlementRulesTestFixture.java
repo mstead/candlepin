@@ -17,6 +17,8 @@ package org.candlepin.policy.js.entitlement;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
+import org.candlepin.audit.EventFactory;
+import org.candlepin.audit.EventSink;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.controller.PoolManager;
@@ -77,6 +79,10 @@ public class EntitlementRulesTestFixture {
     private Provider<JsRunnerRequestCache> cacheProvider;
     @Mock
     private JsRunnerRequestCache cache;
+    @Mock
+    private EventFactory eventFactory;
+    @Mock
+    private EventSink sink;
 
     @Mock
     protected PoolCurator poolCurator;
@@ -115,7 +121,8 @@ public class EntitlementRulesTestFixture {
         consumer = new Consumer("test consumer", "test user", owner,
             new ConsumerType(ConsumerTypeEnum.SYSTEM));
 
-        poolRules = new PoolRules(poolManagerMock, config, entCurMock, prodCuratorMock);
+        poolRules = new PoolRules(poolManagerMock, config, entCurMock, prodCuratorMock,
+            eventFactory, sink);
     }
 
     protected Subscription createVirtLimitSub(String productId, int quantity,
