@@ -181,8 +181,8 @@ public class Exporter {
         File export = null;
         try {
             export = getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
-            ManifestRecord manifestRecord = manifestManager.storeExport(export, consumer);
-            return new ExportResult(consumer, manifestRecord.getId());
+            String exportFileId = manifestManager.storeExport(export, consumer);
+            return new ExportResult(consumer, exportFileId);
         }
         catch (ManifestServiceException e) {
             throw new ExportCreationException("Unable to create export archive", e);
@@ -685,7 +685,7 @@ public class Exporter {
         BufferedOutputStream output = null;
         InputStream input = null;
         try {
-            ManifestRecord manifest = manifestManager.get(exportId);
+            ManifestFile manifest = manifestManager.getFile(exportId);
             if (manifest == null) {
                 throw new NotFoundException("Unable to find specified manifest by id: " + exportId);
             }
@@ -696,12 +696,8 @@ public class Exporter {
             }
 
             // NOTE: Input and output streams are expected to be closed by their creators.
-            ManifestFile manifestFile = manifestManager.getFile(manifest);
-            if (manifestFile == null) {
-                throw new RuntimeException("Could not load export. Manifest file not found.");
-            }
 
-            input = manifestFile.getInputStream();
+            input = manifest.getInputStream();
             output = new BufferedOutputStream(out);
             int data = input.read();
             while (data != -1)

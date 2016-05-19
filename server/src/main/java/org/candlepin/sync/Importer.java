@@ -188,8 +188,8 @@ public class Importer {
     public JobDetail loadExportAsync(Owner owner, File archive, String uploadedFileName,
             ConflictOverrides overrides) throws ImportExtractionException, IOException, ImporterException {
         try {
-            ManifestRecord manifestRecord = manifestManager.storeImport(archive, owner);
-            return ImportJob.scheduleImport(owner, manifestRecord.getId(), uploadedFileName, overrides);
+            String manifestRecordId = manifestManager.storeImport(archive, owner);
+            return ImportJob.scheduleImport(owner, manifestRecordId, uploadedFileName, overrides);
         }
         catch (ManifestServiceException mse) {
             throw new ImporterException("Unable to store manifest file", mse);
@@ -317,17 +317,12 @@ public class Importer {
      */
     @Transactional
     protected File extractFromService(String storedFileId) throws ManifestServiceException, ImporterException {
-        ManifestRecord manifest = manifestManager.get(storedFileId);
+        ManifestFile manifest = manifestManager.getFile(storedFileId);
         if (manifest == null) {
             throw new ImporterException("The requested manifest was not found: " + storedFileId);
         }
 
-        ManifestFile manifestFile = manifestManager.getFile(manifest);
-        if (manifestFile == null) {
-            throw new ImporterException("The requested manifest's file could not be found: " +
-                manifest.getFileId());
-        }
-        File unpacked = unpackExportFile(storedFileId, manifestFile.getInputStream());
+        File unpacked = unpackExportFile(storedFileId, manifest.getInputStream());
         deleteStoredManifest(storedFileId);
         return unpacked;
     }

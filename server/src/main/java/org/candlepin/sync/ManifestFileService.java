@@ -16,11 +16,13 @@
 package org.candlepin.sync;
 
 import java.io.File;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
 import org.candlepin.model.Consumer;
 import org.candlepin.model.Owner;
+import org.candlepin.model.ManifestRecord.ManifestRecordType;
 import org.candlepin.sync.file.ManifestFile;
 
 /**
@@ -42,11 +44,16 @@ public interface ManifestFileService {
     /**
      * Stores the specified file.
      *
+     * @param type the type of operation the file is being stored for (Import/Export)
      * @param fileToStore the {@link File} to store.
+     * @param principalName the name of the principal who uploaded the file.
+     * @param targetId the id of the target entity (will change based on operation). Import: Owner.id
+     *                 Export: Consumer.uuid
      * @return the id of the stored file.
      * @throws ManifestServiceException
      */
-    String store(File fileToStore) throws ManifestServiceException;
+    String store(ManifestRecordType type, File fileToStore, String principalName, String targetId)
+        throws ManifestServiceException;
 
     /**
      * Deletes a manifest matching the specified id.
@@ -57,12 +64,19 @@ public interface ManifestFileService {
     boolean delete(String id) throws ManifestServiceException;
 
     /**
-     * Delete all the files identified by the collection of IDs. The IDs of all
-     * files that were deleted should be returned.
-     *
-     * @param fileIds the ids of the files to delete.
-     * @return the IDs of all the files that were deleted.
+     * Deletes any manifests files that are older than the specified expiry date.
+     * @param expiryDate the target expiry date.
+     * @return the number of files deleted.
      */
-    List<String> delete(Set<String> fileIds);
+    int deleteExpired(Date expiryDate);
+
+//    /**
+//     * Delete all the files identified by the collection of IDs. The IDs of all
+//     * files that were deleted should be returned.
+//     *
+//     * @param fileIds the ids of the files to delete.
+//     * @return the IDs of all the files that were deleted.
+//     */
+//    List<String> delete(Set<String> fileIds);
 
 }

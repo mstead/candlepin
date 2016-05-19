@@ -17,27 +17,11 @@ package org.candlepin.sync.file;
 
 import java.io.InputStream;
 
-public class ManifestFile {
+public interface ManifestFile {
 
-    private String id;
-    private String name;
-    private InputStream inputStream;
+    String getId();
+    String getName();
+    InputStream getInputStream();
+    String getTargetId();
 
-    public ManifestFile(String id, String name, InputStream inputStream) {
-        this.id = id;
-        this.inputStream = inputStream;
-        this.name = name;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public InputStream getInputStream() {
-        return inputStream;
-    }
 }

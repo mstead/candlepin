@@ -1,17 +1,26 @@
 package org.candlepin.model;
 
+import java.beans.Transient;
+import java.io.InputStream;
 import java.io.Serializable;
+import java.sql.Blob;
+import java.sql.SQLException;
 
+import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
+import javax.xml.bind.annotation.XmlTransient;
 
 import org.candlepin.sync.ManifestFileService;
+import org.candlepin.sync.file.ManifestFile;
 import org.hibernate.annotations.GenericGenerator;
 
 /**
@@ -20,9 +29,10 @@ import org.hibernate.annotations.GenericGenerator;
  * the implemented {@link ManifestFileService}.
  */
 @Entity
-@Table(name = "cp_manifest_record")
-public class ManifestRecord extends AbstractHibernateObject {
+@Table(name = "cp_manifest_file_record")
+public class ManifestRecord extends AbstractHibernateObject implements ManifestFile {
 
+    // FIXME This can probably be moved to the manifest service package.
     public enum ManifestRecordType {
         IMPORT,
         EXPORT
@@ -42,9 +52,6 @@ public class ManifestRecord extends AbstractHibernateObject {
     @Column(name = "type")
     private ManifestRecordType type;
 
-    @Column(name = "file_id")
-    private String fileId;
-
     @Column(name = "principal_name")
     private String principalName;
 
@@ -56,17 +63,26 @@ public class ManifestRecord extends AbstractHibernateObject {
     @Column(name = "target_id")
     private String targetId;
 
+    private String filename;
+
+    @Lob
+    @Basic(fetch=FetchType.LAZY)
+    private Blob fileData;
+
     public ManifestRecord() {
         // For hibernate.
     }
 
-    public ManifestRecord(ManifestRecordType type, String fileId, String principalName, String targetId) {
+    public ManifestRecord(ManifestRecordType type, String filename, String principalName, String targetId,
+        Blob data) {
         this.type = type;
-        this.fileId = fileId;
+        this.filename = filename;
         this.principalName = principalName;
         this.targetId = targetId;
+        this.fileData = data;
     }
 
+    @Override
     public String getId() {
         return id;
     }
@@ -83,14 +99,6 @@ public class ManifestRecord extends AbstractHibernateObject {
         this.type = type;
     }
 
-    public String getFileId() {
-        return fileId;
-    }
-
-    public void setFileId(String fileId) {
-        this.fileId = fileId;
-    }
-
     public String getPrincipalName() {
         return principalName;
     }
@@ -105,5 +113,38 @@ public class ManifestRecord extends AbstractHibernateObject {
 
     public void setTargetId(String targetId) {
         this.targetId = targetId;
+    }
+
+    public String getFileName() {
+        return filename;
+    }
+
+    public void setFileName(String fileName) {
+        this.filename = fileName;
+    }
+
+    @XmlTransient
+    public Blob getFileData() {
+        return fileData;
+    }
+
+    public void setFileData(Blob fileData) {
+        this.fileData = fileData;
+    }
+
+    @Override
+    @Transient
+    public String getName() {
+        return filename;
+    }
+
+    @Override
+    @Transient
+    public InputStream getInputStream() {
+        try {
+            return fileData.getBinaryStream();
+        } catch (SQLException e) {
+            throw new RuntimeException("InputStream not available for manifest file.", e);
+        }
     }
 }

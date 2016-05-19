@@ -44,12 +44,8 @@ public class ManifestManager {
      * @param id the id of the target manifest.
      * @return a {@link ManifestFile} matching the id, null otherwise.
      */
-    public ManifestRecord get(String id) throws ManifestServiceException {
-        return manifestRecordCurator.find(id);
-    }
-
-    public ManifestFile getFile(ManifestRecord record) {
-        return manifestFileService.get(record.getFileId());
+    public ManifestFile getFile(String id) throws ManifestServiceException {
+        return manifestFileService.get(id);
     }
 
     /**
@@ -60,21 +56,7 @@ public class ManifestManager {
      */
     @Transactional
     public boolean delete(String id) throws ManifestServiceException {
-        ManifestRecord record = manifestRecordCurator.find(id);
-        if (record == null) {
-            // nothing to do
-            return true;
-        }
-        if (!manifestFileService.delete(record.getFileId())) {
-            return false;
-        }
-
-        // If this fails, we will end up with manifest records that have broken
-        // file references, to the service, since they were deleted above. There isn't
-        // much we can do about this here since the file service could be on another
-        // system and we can't really roll it back. For this reason, the ExportCleaner
-        // job will delete any rogue ManifestRecords for us.
-        return manifestRecordCurator.deleteById(record.getId());
+        return manifestFileService.delete(id);
     }
 
     /**
@@ -84,7 +66,7 @@ public class ManifestManager {
      * @return the id of the stored manifest file.
      */
     @Transactional
-    public ManifestRecord storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
+    public String storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
         // Store the manifest record, and then store the file.
         // TODO: Check to see if we are allowed to do this based on the principal.
         return storeFile(importFile, ManifestRecordType.IMPORT, targetOwner.getKey());
@@ -98,7 +80,7 @@ public class ManifestManager {
      * @throws ManifestServiceException
      */
     @Transactional
-    public ManifestRecord storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
+    public String storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
         // Store the manifest record, and then store the file.
         // TODO: Check to see if we are allowed to do this based on the principal.
         return storeFile(exportFile, ManifestRecordType.EXPORT, distributor.getUuid());
@@ -120,45 +102,12 @@ public class ManifestManager {
             return 0;
         }
 
-        List<ManifestRecord> expired =
-            manifestRecordCurator.getExpired(Util.addMinutesToDt(maxAgeInMinutes * -1),
-                ManifestRecordType.EXPORT);
-        Set<String> fileIds = new HashSet<String>();
-        for (ManifestRecord record : expired) {
-            fileIds.add(record.getFileId());
-        }
-
-        List<String> deletedFileIds = manifestFileService.delete(fileIds);
-        if (log.isDebugEnabled()) {
-            for (String deleted : deletedFileIds) {
-                log.debug("Deleted file: {}", deleted);
-            }
-        }
-
-        // Make sure that we only delete the manifest records who's file
-        // was also deleted.
-        List<ManifestRecord> toDelete = new LinkedList<ManifestRecord>();
-        for (ManifestRecord record: expired) {
-            if (deletedFileIds.contains(record.getFileId())) {
-                toDelete.add(record);
-            }
-        }
-
-        // If this fails, we will end up with manifest records that have broken
-        // file references, to the service, since they were deleted above. There isn't
-        // much we can do about this here since the file service could be on another
-        // system and we can't really roll it back. For this reason, the ManifestCleanerJob
-        // will delete any rogue ManifestRecords for us.
-        manifestRecordCurator.bulkDelete(toDelete);
-        return toDelete.size();
+        return manifestFileService.deleteExpired(Util.addMinutesToDt(maxAgeInMinutes * -1));
     }
 
-    private ManifestRecord storeFile(File targetFile, ManifestRecordType type, String targetId)
+    private String storeFile(File targetFile, ManifestRecordType type, String targetId)
         throws ManifestServiceException {
         // Store the manifest record, and then store the file.
-        String fileId = manifestFileService.store(targetFile);
-        ManifestRecord manifestRecord = manifestRecordCurator.create(
-            new ManifestRecord(type, fileId, principalProvider.get().getName(), targetId));
-        return manifestRecord;
+        return manifestFileService.store(type, targetFile, principalProvider.get().getName(), targetId);
     }
 }

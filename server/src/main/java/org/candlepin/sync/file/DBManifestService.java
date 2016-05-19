@@ -3,13 +3,14 @@ package org.candlepin.sync.file;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
 import org.candlepin.model.Consumer;
-import org.candlepin.model.DbFileStoreCurator;
-import org.candlepin.model.DbStoredFile;
+import org.candlepin.model.ManifestRecord;
 import org.candlepin.model.ManifestRecord.ManifestRecordType;
+import org.candlepin.model.ManifestRecordCurator;
 import org.candlepin.model.Owner;
 import org.candlepin.sync.ManifestFileService;
 import org.candlepin.sync.ManifestServiceException;
@@ -23,25 +24,16 @@ public class DBManifestService implements ManifestFileService {
 
     private static Logger log = LoggerFactory.getLogger(DBManifestService.class);
 
-    private DbFileStoreCurator curator;
+    private ManifestRecordCurator curator;
 
     @Inject
-    public DBManifestService(DbFileStoreCurator curator) {
+    public DBManifestService(ManifestRecordCurator curator) {
         this.curator = curator;
     }
 
     @Override
     public ManifestFile get(String id) throws ManifestServiceException {
-        try {
-            DbStoredFile file = curator.findFile(id);
-            if (file == null) {
-                return null;
-            }
-            return new ManifestFile(file.getId(), file.getFileName(), file.getFileData().getBinaryStream());
-        }
-        catch (SQLException e) {
-            throw new ManifestServiceException("Unable to load manifest data", e);
-        }
+        return curator.findFile(id);
     }
 
     @Override
@@ -50,9 +42,11 @@ public class DBManifestService implements ManifestFileService {
     }
 
     @Override
-    public String store(File toStore) throws ManifestServiceException {
+    public String store(ManifestRecordType type, File fileToStore, String principalName, String targetId)
+        throws ManifestServiceException {
+        // TODO: Can I return a reference to the object now that I have fixed the transaction bits?
         try {
-            DbStoredFile stored = curator.createFile(toStore);
+            ManifestRecord stored = curator.createFile(type, fileToStore, principalName, targetId);
             return stored.getId();
         }
         catch (IOException e) {
@@ -61,8 +55,8 @@ public class DBManifestService implements ManifestFileService {
     }
 
     @Override
-    public List<String> delete(Set<String> fileIds) {
-        return curator.deleteByIds(fileIds);
+    public int deleteExpired(Date expiryDate) {
+        return curator.deleteExpired(expiryDate);
     }
 
 }

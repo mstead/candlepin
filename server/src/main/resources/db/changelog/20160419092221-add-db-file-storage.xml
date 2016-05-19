@@ -16,19 +16,13 @@
     <property name="date.type" value="DATETIME" dbms="mysql"/>
 
     <changeSet id="20160419092221-1" author="mstead">
-        <comment>Add ManifestRecord object to track manifest meta data.</comment>
-        <createTable tableName="cp_manifest_record">
+        <comment>Add ManifestFileRecord object to track manifest data.</comment>
+        <createTable tableName="cp_manifest_file_record">
             <column name="id" type="VARCHAR(32)">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="cp_manifest_pkey"/>
             </column>
             <column name="created" type="${date.type}"/>
             <column name="updated" type="${date.type}"/>
-            <!-- NOTE: Keep the file_id column large as it could eventually be a path -->
-            <!--       if the ManifestFileService implementation ever changes to a    -->
-            <!--       non DB implementation. -->
-            <column name="file_id" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
             <column name="principal_name" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
@@ -38,17 +32,6 @@
             <column name="target_id" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-        </createTable>
-    </changeSet>
-
-    <changeSet id="20160419092221-2" author="mstead">
-        <comment>Add DB File Storage for async manifest import/export.</comment>
-        <createTable tableName="cp_stored_file">
-            <column name="id" type="VARCHAR(32)">
-                <constraints nullable="false" primaryKey="true" primaryKeyName="cp_sfile_pkey"/>
-            </column>
-            <column name="created" type="${date.type}"/>
-            <column name="updated" type="${date.type}"/>
             <column name="filename" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
