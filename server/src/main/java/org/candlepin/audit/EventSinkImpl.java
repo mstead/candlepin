@@ -16,6 +16,7 @@ package org.candlepin.audit;
 
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.controller.ModeManager;
 import org.candlepin.model.Consumer;
 import org.candlepin.model.Entitlement;
 import org.candlepin.model.Owner;
@@ -61,6 +62,7 @@ public class EventSinkImpl implements EventSink {
     private ObjectMapper mapper;
     private EventFilter eventFilter;
     private int largeMsgSize;
+    private ModeManager modeManager;
 
     /*
      * Important use of ThreadLocal here, each Tomcat/Quartz thread gets it's own session
@@ -172,6 +174,8 @@ public class EventSinkImpl implements EventSink {
             return;
         }
 
+        modeManager.throwRestEasyExceptionIfInSuspendMode();
+        
         log.debug("Queuing event: {}", event);
 
         try {

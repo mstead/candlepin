@@ -36,9 +36,11 @@ public class CandlepinFilterModule extends ServletModule {
     protected void configureServlets() {
         Map<String, String> loggingFilterConfig = new HashMap<String, String>();
         loggingFilterConfig.put("header.name", "x-candlepin-request-uuid");
-
+        String noStatusResource = "/(?!status).*";
+        
         filter("/*").through(CandlepinScopeFilter.class);
         filter("/*").through(CandlepinPersistFilter.class);
+        filterRegex(noStatusResource).through(CandlepinSuspendModeFilter.class);
         filter("/*").through(LoggingFilter.class, loggingFilterConfig);
         filter("/*").through(ContentTypeHackFilter.class);
         filter("/*").through(EventFilter.class);

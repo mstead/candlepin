@@ -7,7 +7,12 @@
         <topLogger>org.candlepin</topLogger>
         <OnMatch>ACCEPT</OnMatch>
     </turboFilter>
-
+	<appender name="SOCKET" class="ch.qos.logback.classic.net.SocketAppender">
+		<remoteHost>localhost</remoteHost>
+		 <Port>4560</Port>
+		<reconnectionDelay>10000</reconnectionDelay>
+		<includeCallerData>true</includeCallerData>
+	</appender>
     <appender name="CandlepinAppender" class="ch.qos.logback.core.FileAppender">
         <file>/var/log/candlepin/candlepin.log</file>
         <encoder>
@@ -37,8 +42,23 @@
             <level>WARN</level>
         </filter>
     </appender>
+    
+    <logger name="org.candlepin.controller.ModeManagerImpl" level="DEBUG">
+    	<appender-ref ref="SOCKET" />
+    </logger>
+   <logger name="org.candlepin.pinsetter.tasks.KingpinJob" level="DEBUG">
+    	<appender-ref ref="SOCKET" />
+    </logger>
+    
+    <logger name="org.candlepin.pinsetter.core.PinsetterKernel" level="DEBUG">
+    	<appender-ref ref="SOCKET" />
+    </logger>
+    <logger name="org.candlepin.pinsetter.core.PinsetterTriggerListener" level="DEBUG">
+    	<appender-ref ref="SOCKET" />
+    </logger>
 
     <logger name="org.candlepin" level="INFO"/>
+
 
     <root level="WARN">
         <appender-ref ref="CandlepinAppender" />

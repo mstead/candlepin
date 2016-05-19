@@ -25,6 +25,9 @@ import static org.quartz.impl.matchers.GroupMatcher.jobGroupEquals;
 import org.candlepin.auth.SystemPrincipal;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.controller.ModeChangeListener;
+import org.candlepin.controller.ModeManager;
+import org.candlepin.model.CandlepinMode.Mode;
 import org.candlepin.model.JobCurator;
 import org.candlepin.pinsetter.core.model.JobStatus;
 import org.candlepin.pinsetter.tasks.CancelJobJob;
@@ -43,6 +46,7 @@ import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.quartz.TriggerListener;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.matchers.GroupMatcher;
@@ -63,7 +67,7 @@ import java.util.Set;
  * @version $Rev$
  */
 @Singleton
-public class PinsetterKernel {
+public class PinsetterKernel implements ModeChangeListener {
 
     public static final String CRON_GROUP = "cron group";
     public static final String SINGLE_JOB_GROUP = "async group";
@@ -74,7 +78,9 @@ public class PinsetterKernel {
     private Scheduler scheduler;
     private Configuration config;
     private JobCurator jobCurator;
-
+    private TriggerListener triggerListener;
+    private ModeManager modeManager;
+    
     /**
      * Kernel main driver behind Pinsetter
      * @param conf Configuration to use
@@ -84,11 +90,14 @@ public class PinsetterKernel {
     @Inject
     public PinsetterKernel(Configuration conf, JobFactory jobFactory,
         JobListener listener, JobCurator jobCurator,
-        StdSchedulerFactory fact) throws InstantiationException {
+        StdSchedulerFactory fact,
+        TriggerListener triggerListener,
+        ModeManager modeManager) throws InstantiationException {
 
         this.config = conf;
         this.jobCurator = jobCurator;
-
+        this.modeManager = modeManager;
+        this.triggerListener = triggerListener;
         /*
          * Did your unit test get an NPE here?
          * this will help:
@@ -106,6 +115,9 @@ public class PinsetterKernel {
             if (listener != null) {
                 scheduler.getListenerManager().addJobListener(listener);
             }
+            if (triggerListener != null) {
+                scheduler.getListenerManager().addTriggerListener(triggerListener);
+            }
         }
         catch (SchedulerException e) {
             throw new InstantiationException("this.scheduler failed: " +
@@ -122,6 +134,7 @@ public class PinsetterKernel {
     public void startup() throws PinsetterException {
         try {
             scheduler.start();
+            modeManager.registerModeChangeListener(this);
             configure();
         }
         catch (SchedulerException e) {
@@ -510,6 +523,35 @@ public class PinsetterKernel {
         public String getJobName() {
             return jobname;
         }
+    }
+
+    private void pauseAll() {
+        try {
+            log.debug("Pinsetter Kernel is being paused");
+            scheduler.pauseAll();
+        }
+        catch (SchedulerException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    private void resumeAll() {
+        try {
+            log.debug("Pinsetter Kernel is being resumed");
+            scheduler.resumeAll();
+        }
+        catch (SchedulerException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void modeChanged(Mode newMode) {
+        if (newMode == Mode.SUSPEND)
+            pauseAll();
+        else if (newMode == Mode.NORMAL)
+            resumeAll();
+            
     }
 
 }

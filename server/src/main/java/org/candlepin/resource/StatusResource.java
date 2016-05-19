@@ -18,6 +18,8 @@ import org.candlepin.common.auth.SecurityHole;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.util.VersionUtil;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.controller.ModeManager;
+import org.candlepin.model.CandlepinMode.Mode;
 import org.candlepin.model.RulesCurator;
 import org.candlepin.model.Status;
 import org.candlepin.policy.js.JsRunnerProvider;
@@ -30,8 +32,10 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 /**
@@ -52,14 +56,15 @@ public class StatusResource {
     private String release = "Unknown";
 
     private boolean standalone = true;
-
+    private ModeManager modeManager;
     private RulesCurator rulesCurator;
     private JsRunnerProvider jsProvider;
 
     @Inject
-    public StatusResource(RulesCurator rulesCurator, Configuration config, JsRunnerProvider jsProvider) {
+    public StatusResource(RulesCurator rulesCurator, Configuration config, JsRunnerProvider jsProvider, ModeManager modeManager) {
         this.rulesCurator = rulesCurator;
 
+        this.modeManager = modeManager;
         Map<String, String> map = VersionUtil.getVersionMap();
         version = map.get("version");
         release = map.get("release");
@@ -113,5 +118,16 @@ public class StatusResource {
             jsProvider.getRulesVersion(), jsProvider.getRulesSource());
         return status;
     }
+    
+    @POST
+    @Produces({ MediaType.APPLICATION_JSON})
+    @SecurityHole(noAuth = true, anon = true)
+    public void changeMode(
+        @QueryParam("mode")  String mode, 
+        @QueryParam("reason") String reason) {
+        Mode m = Mode.valueOf(mode);
+        modeManager.enterMode(m, reason);
+    }
+
 
 }

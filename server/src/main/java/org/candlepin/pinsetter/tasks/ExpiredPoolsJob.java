@@ -34,7 +34,10 @@ import org.slf4j.LoggerFactory;
 public class ExpiredPoolsJob extends KingpinJob {
 
     // Every hour:
-    public static final String DEFAULT_SCHEDULE = "0 0 0/1 * * ?";
+    /**
+     * For test purposes, every 2 minutes
+     */
+    public static final String DEFAULT_SCHEDULE = "0 0/2 * * * ?";
 
     private PoolManager poolManager;
 

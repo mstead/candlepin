@@ -66,7 +66,7 @@ public class PinsetterJobListener implements JobListener {
     public void jobToBeExecuted(JobExecutionContext context) {
         Principal principal = (Principal) context.getMergedJobDataMap().get(PRINCIPAL_KEY);
         ResteasyProviderFactory.pushContext(Principal.class, principal);
-
+        
         try {
             unitOfWork.begin();
             updateJob(context);

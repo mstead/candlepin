@@ -18,9 +18,11 @@ import static org.quartz.impl.matchers.NameMatcher.jobNameEquals;
 
 import org.candlepin.audit.EventSink;
 import org.candlepin.common.config.Configuration;
+import org.candlepin.common.exceptions.SuspendedException;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.model.JobCurator;
 import org.candlepin.pinsetter.core.PinsetterJobListener;
+import org.candlepin.pinsetter.core.PinsetterKernel;
 import org.candlepin.pinsetter.core.RetryJobException;
 import org.candlepin.pinsetter.core.model.JobStatus;
 
@@ -53,7 +55,7 @@ public abstract class KingpinJob implements Job {
     @Inject protected UnitOfWork unitOfWork;
     @Inject protected Configuration config;
     @Inject private EventSink eventSink;
-
+    @Inject private PinsetterKernel pinsetterKernel;
     protected static String prefix = "job";
 
     @Override
@@ -111,6 +113,14 @@ public abstract class KingpinJob implements Job {
             if (eventSink != null) {
                 eventSink.rollback();
             }
+        } catch (SuspendedException se){
+            /*
+             * Candlepin is in suspend mode. Pinsetter Kernel needs to pause 
+             * all jobs. This will be handled automatically because 
+             * Pinsetter Kernel listens to Candlepin Mode changes
+             */
+            log.debug("Job failed because server entered SUSPEND mode.  ");
+            throw new JobExecutionException(se, true);
         }
         finally {
             if (startedUow) {
