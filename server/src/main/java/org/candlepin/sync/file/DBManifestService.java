@@ -57,4 +57,9 @@ public class DBManifestService implements ManifestFileService {
         return curator.deleteExpired(expiryDate);
     }
 
+    @Override
+    public int delete(ManifestRecordType type, String targetId) {
+        return curator.deleteMatching(type, targetId);
+    }
+
 }

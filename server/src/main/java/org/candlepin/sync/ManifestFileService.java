@@ -17,11 +17,7 @@ package org.candlepin.sync;
 
 import java.io.File;
 import java.util.Date;
-import java.util.List;
-import java.util.Set;
 
-import org.candlepin.model.Consumer;
-import org.candlepin.model.Owner;
 import org.candlepin.model.ManifestRecord.ManifestRecordType;
 import org.candlepin.sync.file.ManifestFile;
 
@@ -69,6 +65,14 @@ public interface ManifestFileService {
      * @return the number of files deleted.
      */
     int deleteExpired(Date expiryDate);
+
+    /**
+     * Delete all files matching the type and targetId.
+     * @param type the type of file.
+     * @param targetId the ID of the file target (consumer UUID or Owner key)
+     * @return the number of files deleted.
+     */
+    int delete(ManifestRecordType type, String targetId);
 
 //    /**
 //     * Delete all the files identified by the collection of IDs. The IDs of all

@@ -13,6 +13,7 @@ import java.util.Set;
 import javax.persistence.Query;
 
 import org.candlepin.model.ManifestRecord.ManifestRecordType;
+import org.candlepin.sync.file.ManifestFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,4 +103,13 @@ public class ManifestRecordCurator extends AbstractHibernateCurator<ManifestReco
         q.setParameter("expiry", expiryDate);
         return q.executeUpdate();
     }
+
+    public int deleteMatching(ManifestRecordType type, String targetId) {
+        String queryString = "delete from ManifestRecord r where r.type=:type and r.targetId=:target";
+        Query q = getEntityManager().createQuery(queryString);
+        q.setParameter("type", type);
+        q.setParameter("target", targetId);
+        return q.executeUpdate();
+    }
+
 }

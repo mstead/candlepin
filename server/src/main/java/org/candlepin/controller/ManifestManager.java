@@ -90,8 +90,11 @@ public class ManifestManager {
      */
     @Transactional
     public ManifestFile storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
-        // Store the manifest record, and then store the file.
         // TODO: Check to see if we are allowed to do this based on the principal.
+        // Only allow a single export for a consumer at a time. Delete all others before
+        // storing the new one.
+        int count = manifestFileService.delete(ManifestRecordType.EXPORT, distributor.getUuid());
+        log.debug("Deleted {} existing export files for distributor {}.", count, distributor.getUuid());
         return storeFile(exportFile, ManifestRecordType.EXPORT, distributor.getUuid());
     }
 
