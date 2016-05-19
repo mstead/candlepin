@@ -181,8 +181,8 @@ public class Exporter {
         File export = null;
         try {
             export = getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
-            String exportFileId = manifestManager.storeExport(export, consumer);
-            return new ExportResult(consumer, exportFileId);
+            ManifestFile manifestFile = manifestManager.storeExport(export, consumer);
+            return new ExportResult(consumer, manifestFile.getId());
         }
         catch (ManifestServiceException e) {
             throw new ExportCreationException("Unable to create export archive", e);
@@ -228,7 +228,7 @@ public class Exporter {
      */
     private File makeArchive(Consumer consumer, File tempDir, File exportDir)
         throws IOException {
-        String exportFileName = exportDir.getName() + ".zip";
+        String exportFileName = String.format("%s-%s.zip", consumer.getUuid(), exportDir.getName());
         log.info("Creating archive of " + exportDir.getAbsolutePath() + " in: " +
             exportFileName);
 
@@ -678,41 +678,6 @@ public class Exporter {
         String apiUrl) {
         log.info("Scheduling Async Export for consumer {}", consumer.getUuid());
         return ExportJob.scheduleExport(consumer, cdnLabel, webAppPrefix, apiUrl);
-    }
-
-    @Transactional
-    public void readStoredExport(String exportId, Consumer exportedConsumer, OutputStream out) {
-        BufferedOutputStream output = null;
-        InputStream input = null;
-        try {
-            ManifestFile manifest = manifestManager.getFile(exportId);
-            if (manifest == null) {
-                throw new NotFoundException("Unable to find specified manifest by id: " + exportId);
-            }
-
-            if (!exportedConsumer.getUuid().equals(manifest.getTargetId())) {
-                throw new BadRequestException("Could not validate export against specifed consumer: " +
-                    exportedConsumer.getUuid());
-            }
-
-            // NOTE: Input and output streams are expected to be closed by their creators.
-
-            input = manifest.getInputStream();
-            output = new BufferedOutputStream(out);
-            int data = input.read();
-            while (data != -1)
-            {
-                output.write(data);
-                data = input.read();
-            }
-            output.flush();
-        }
-        catch (ManifestServiceException e) {
-            throw new ExporterException("Unable to find manifest by id: " + exportId, e);
-        }
-        catch (IOException e) {
-            throw new ExporterException("Unable to get manifest: " + exportId, e);
-        }
     }
 
     public void deleteStoredExport(String id) {

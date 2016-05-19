@@ -263,7 +263,7 @@ public class GuestIdResourceTest {
         public ConsumerResourceForTesting() {
             super(null, null, null, null, null, null, null, null, null,
                   null, null, null, null, null, null, null, null, null,
-                  null, null, null, null, null, null, null, null, null, null);
+                  null, null, null, null, null, null, null, null, null, null, null);
         }
 
         public void checkForMigration(Consumer host, Consumer guest) {

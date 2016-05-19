@@ -188,8 +188,8 @@ public class Importer {
     public JobDetail loadExportAsync(Owner owner, File archive, String uploadedFileName,
             ConflictOverrides overrides) throws ImportExtractionException, IOException, ImporterException {
         try {
-            String manifestRecordId = manifestManager.storeImport(archive, owner);
-            return ImportJob.scheduleImport(owner, manifestRecordId, uploadedFileName, overrides);
+            ManifestFile manifestRecordId = manifestManager.storeImport(archive, owner);
+            return ImportJob.scheduleImport(owner, manifestRecordId.getId(), uploadedFileName, overrides);
         }
         catch (ManifestServiceException mse) {
             throw new ImporterException("Unable to store manifest file", mse);

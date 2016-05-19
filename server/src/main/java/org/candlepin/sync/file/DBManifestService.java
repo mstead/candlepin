@@ -42,12 +42,10 @@ public class DBManifestService implements ManifestFileService {
     }
 
     @Override
-    public String store(ManifestRecordType type, File fileToStore, String principalName, String targetId)
+    public ManifestFile store(ManifestRecordType type, File fileToStore, String principalName, String targetId)
         throws ManifestServiceException {
-        // TODO: Can I return a reference to the object now that I have fixed the transaction bits?
         try {
-            ManifestRecord stored = curator.createFile(type, fileToStore, principalName, targetId);
-            return stored.getId();
+            return curator.createFile(type, fileToStore, principalName, targetId);
         }
         catch (IOException e) {
             throw new ManifestServiceException(e);

@@ -52,7 +52,7 @@ public interface ManifestFileService {
      * @return the id of the stored file.
      * @throws ManifestServiceException
      */
-    String store(ManifestRecordType type, File fileToStore, String principalName, String targetId)
+    ManifestFile store(ManifestRecordType type, File fileToStore, String principalName, String targetId)
         throws ManifestServiceException;
 
     /**

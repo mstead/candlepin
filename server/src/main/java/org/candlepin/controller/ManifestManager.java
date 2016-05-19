@@ -1,11 +1,19 @@
 package org.candlepin.controller;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import javax.servlet.http.HttpServletResponse;
+
+import org.candlepin.common.exceptions.BadRequestException;
+import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.guice.PrincipalProvider;
 import org.candlepin.model.Consumer;
 import org.candlepin.model.ManifestRecord;
@@ -16,6 +24,7 @@ import org.candlepin.sync.ManifestFileService;
 import org.candlepin.sync.ManifestServiceException;
 import org.candlepin.sync.file.ManifestFile;
 import org.candlepin.util.Util;
+import org.hibernate.tool.hbm2x.ExporterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +75,7 @@ public class ManifestManager {
      * @return the id of the stored manifest file.
      */
     @Transactional
-    public String storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
+    public ManifestFile storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
         // Store the manifest record, and then store the file.
         // TODO: Check to see if we are allowed to do this based on the principal.
         return storeFile(importFile, ManifestRecordType.IMPORT, targetOwner.getKey());
@@ -80,7 +89,7 @@ public class ManifestManager {
      * @throws ManifestServiceException
      */
     @Transactional
-    public String storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
+    public ManifestFile storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
         // Store the manifest record, and then store the file.
         // TODO: Check to see if we are allowed to do this based on the principal.
         return storeFile(exportFile, ManifestRecordType.EXPORT, distributor.getUuid());
@@ -105,7 +114,45 @@ public class ManifestManager {
         return manifestFileService.deleteExpired(Util.addMinutesToDt(maxAgeInMinutes * -1));
     }
 
-    private String storeFile(File targetFile, ManifestRecordType type, String targetId)
+    @Transactional
+    public void readStoredExport(String exportId, Consumer exportedConsumer, HttpServletResponse response) {
+
+        BufferedOutputStream output = null;
+        InputStream input = null;
+        try {
+            ManifestFile manifest = getFile(exportId);
+            if (manifest == null) {
+                throw new NotFoundException("Unable to find specified manifest by id: " + exportId);
+            }
+
+            if (!exportedConsumer.getUuid().equals(manifest.getTargetId())) {
+                throw new BadRequestException("Could not validate export against specifed consumer: " +
+                    exportedConsumer.getUuid());
+            }
+
+            response.setContentType("application/zip");
+            response.setHeader("Content-Disposition", "attachment; filename=" + manifest.getName());
+
+            // NOTE: Input and output streams are expected to be closed by their creators.
+            input = manifest.getInputStream();
+            output = new BufferedOutputStream(response.getOutputStream());
+            int data = input.read();
+            while (data != -1)
+            {
+                output.write(data);
+                data = input.read();
+            }
+            output.flush();
+        }
+        catch (ManifestServiceException e) {
+            throw new ExporterException("Unable to find manifest by id: " + exportId, e);
+        }
+        catch (IOException e) {
+            throw new ExporterException("Unable to get manifest: " + exportId, e);
+        }
+    }
+
+    private ManifestFile storeFile(File targetFile, ManifestRecordType type, String targetId)
         throws ManifestServiceException {
         // Store the manifest record, and then store the file.
         return manifestFileService.store(type, targetFile, principalProvider.get().getName(), targetId);

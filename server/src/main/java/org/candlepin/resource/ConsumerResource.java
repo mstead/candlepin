@@ -39,6 +39,7 @@ import org.candlepin.common.paging.PageRequest;
 import org.candlepin.common.paging.Paginate;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.controller.Entitler;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.controller.PoolManager;
 import org.candlepin.model.CdnCurator;
 import org.candlepin.model.CertificateSerialDto;
@@ -193,6 +194,7 @@ public class ConsumerResource {
     private Configuration config;
     private CalculatedAttributesUtil calculatedAttributesUtil;
     private ConsumerBindUtil consumerBindUtil;
+    private ManifestManager manifestManager;
 
     @Inject
     public ConsumerResource(ConsumerCurator consumerCurator,
@@ -212,7 +214,7 @@ public class ConsumerResource {
         DistributorVersionCurator distributorVersionCurator,
         Configuration config, ContentCurator contentCurator,
         CdnCurator cdnCurator, CalculatedAttributesUtil calculatedAttributesUtil,
-        ConsumerBindUtil consumerBindUtil) {
+        ConsumerBindUtil consumerBindUtil, ManifestManager manifestManager) {
 
         this.consumerCurator = consumerCurator;
         this.consumerTypeCurator = consumerTypeCurator;
@@ -245,6 +247,7 @@ public class ConsumerResource {
         this.config = config;
         this.calculatedAttributesUtil = calculatedAttributesUtil;
         this.consumerBindUtil = consumerBindUtil;
+        this.manifestManager = manifestManager;
     }
 
     @ApiOperation(notes = "Retrieves a list of the Consumers", value = "list")
@@ -1847,10 +1850,7 @@ public class ConsumerResource {
             //       like it would be a correct approach here, but large object streaming
             //       can only be done inside a single transaction, so we have to stream it
             //       manually.
-            response.setContentType("application/zip");
-            response.setHeader("Content-Disposition", "attachment; filename=" + consumer.getUuid() +
-                    "-manifest.zip");
-            exporter.readStoredExport(exportId, consumer, response.getOutputStream());
+            manifestManager.readStoredExport(exportId, consumer, response);
 
             // On successful manifest read, delete the record.
             exporter.deleteStoredExport(exportId);
