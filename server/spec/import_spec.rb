@@ -56,7 +56,6 @@ describe 'Import Test Group:', :serial => true do
         # Wait a little longer here as import can take a bit of time
         wait_for_job(job["id"], 10)
         status = @cp.get_job(job["id"], true)
-
         if status["state"] == "FAILED"
           raise AsyncImportFailure.new(status)
         end
@@ -81,8 +80,8 @@ describe 'Import Test Group:', :serial => true do
           derived_found = true
         end
       end
-      provided_found.should be_true
-      derived_found.should be_true
+      provided_found.should be true
+      derived_found.should be true
     end
 
     it 'ignores multiplier for pool quantity' do
@@ -178,19 +177,19 @@ describe 'Import Test Group:', :serial => true do
       begin
         @import_method.call(@import_owner['key'], @cp_export_file)
       rescue RestClient::Conflict => e
-        async.should be_false
+        async.should be false
         json = JSON.parse(e.http_body)
         exception = true
       rescue AsyncImportFailure => aif
-        async.should be_true
+        async.should be true
         json = aif.data["resultData"]
         json.should_not be_nil
         exception = true
       end
 
-      exception.should be_true
-      json["conflicts"].should have(1).things
-      json["conflicts"].include?("MANIFEST_SAME").should be_true
+      exception.should be true
+      expect(json["conflicts"].size).to eq(1)
+      json["conflicts"].include?("MANIFEST_SAME").should be true
     end
 
     it 'should not allow importing an old manifest' do
@@ -208,19 +207,19 @@ describe 'Import Test Group:', :serial => true do
       begin
         @import_method.call(owner['key'], older)
       rescue RestClient::Conflict => e
-        async.should be_false
+        async.should be false
         json = JSON.parse(e.http_body)
         exception = true
       rescue AsyncImportFailure => aif
-        async.should be_true
+        async.should be true
         json = aif.data["resultData"]
         json.should_not be_nil
         exception = true
       end
 
-      exception.should be_true
-      json["conflicts"].should have(1).things
-      json["conflicts"].include?("MANIFEST_OLD").should be_true
+      exception.should be true
+      expect(json["conflicts"].size).to eq(1)
+      json["conflicts"].include?("MANIFEST_OLD").should be true
     end
 
     it 'should create a FAILURE record on a duplicate import' do
@@ -272,21 +271,21 @@ describe 'Import Test Group:', :serial => true do
       begin
         @import_method.call(@import_owner['key'], another)
       rescue RestClient::Exception => e
-        async.should be_false
+        async.should be false
         e.http_code.should == 409
         json = JSON.parse(e.http_body)
         exception = true
       rescue AsyncImportFailure => aif
-        async.should be_true
+        async.should be true
         json = aif.data["resultData"]
         json.should_not be_nil
         exception = true
       end
 
-      exception.should be_true
-      json["displayMessage"].include?(expected).should be_true
+      exception.should be true
+      json["displayMessage"].include?(expected).should be true
       json["conflicts"].size.should == 1
-      json["conflicts"].include?("DISTRIBUTOR_CONFLICT").should be_true
+      json["conflicts"].include?("DISTRIBUTOR_CONFLICT").should be true
 
       @cp.get_owner(@import_owner['key'])['upstreamConsumer']['uuid'].should == old_upstream_uuid
 
@@ -295,21 +294,21 @@ describe 'Import Test Group:', :serial => true do
       begin
         @import_method.call(@import_owner['key'], another)
       rescue RestClient::Exception => e
-        async.should be_false
+        async.should be false
         e.http_code.should == 409
         json = JSON.parse(e.http_body)
         exception = true
       rescue AsyncImportFailure => aif
-        async.should be_true
+        async.should be true
         json = aif.data["resultData"]
         json.should_not be_nil
         exception = true
       end
 
-      exception.should be_true
-      json["displayMessage"].include?(expected).should be_true
+      exception.should be true
+      json["displayMessage"].include?(expected).should be true
       json["conflicts"].size.should == 1
-      json["conflicts"].include?("DISTRIBUTOR_CONFLICT").should be_true
+      json["conflicts"].include?("DISTRIBUTOR_CONFLICT").should be true
     end
 
     it 'should allow forcing a manifest from a different subscription management application' do
@@ -358,19 +357,19 @@ describe 'Import Test Group:', :serial => true do
       begin
         @import_method.call(owner2['key'], @cp_export_file)
       rescue RestClient::Exception => e
-        async.should be_false
+        async.should be false
         e.http_code.should == 400
         json = JSON.parse(e.http_body)
         exception = true
       rescue AsyncImportFailure => aif
-        async.should be_true
+        async.should be true
         json = aif.data["resultData"]
         json.should_not be_nil
         exception = true
       end
 
       @cp.delete_owner(owner2['key'])
-      exception.should be_true
+      exception.should be true
       message = json["displayMessage"]
       message.should_not be_nil
       message.should == expected
