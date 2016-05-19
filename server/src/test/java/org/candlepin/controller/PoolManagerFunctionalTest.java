@@ -26,25 +26,18 @@ import org.candlepin.common.paging.Page;
 import org.candlepin.common.paging.PageRequest;
 import org.candlepin.model.Branding;
 import org.candlepin.model.Consumer;
-import org.candlepin.model.ConsumerCurator;
 import org.candlepin.model.ConsumerInstalledProduct;
 import org.candlepin.model.ConsumerType;
 import org.candlepin.model.ConsumerType.ConsumerTypeEnum;
-import org.candlepin.model.ConsumerTypeCurator;
 import org.candlepin.model.Content;
-import org.candlepin.model.ContentCurator;
 import org.candlepin.model.Entitlement;
 import org.candlepin.model.EntitlementCertificate;
-import org.candlepin.model.EntitlementCurator;
 import org.candlepin.model.Owner;
-import org.candlepin.model.OwnerCurator;
 import org.candlepin.model.Pool;
 import org.candlepin.model.PoolAttribute;
-import org.candlepin.model.PoolCurator;
 import org.candlepin.model.PoolFilterBuilder;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductAttribute;
-import org.candlepin.model.ProductCurator;
 import org.candlepin.model.activationkeys.ActivationKey;
 import org.candlepin.model.dto.Subscription;
 import org.candlepin.policy.EntitlementRefusedException;
@@ -88,13 +81,6 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
     public static final String PRODUCT_VIRT_HOST_PLATFORM = "virtualization_host_platform";
     public static final String PRODUCT_VIRT_GUEST = "virt_guest";
 
-    @Inject private OwnerCurator ownerCurator;
-    @Inject private ProductCurator productCurator;
-    @Inject private PoolCurator poolCurator;
-    @Inject private ConsumerCurator consumerCurator;
-    @Inject private ConsumerTypeCurator consumerTypeCurator;
-    @Inject private EntitlementCurator entitlementCurator;
-    @Inject private ContentCurator contentCurator;
     @Inject private CandlepinPoolManager poolManager;
 
     private Product virtHost;
@@ -131,8 +117,7 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
         provisioning.addAttribute(new ProductAttribute("instance-multiplier", "4"));
 
         virtHost.addAttribute(new ProductAttribute(PRODUCT_VIRT_HOST, ""));
-        virtHostPlatform.addAttribute(new ProductAttribute(PRODUCT_VIRT_HOST_PLATFORM,
-            ""));
+        virtHostPlatform.addAttribute(new ProductAttribute(PRODUCT_VIRT_HOST_PLATFORM, ""));
         virtGuest.addAttribute(new ProductAttribute(PRODUCT_VIRT_GUEST, ""));
         monitoring.addAttribute(new ProductAttribute(PRODUCT_MONITORING, ""));
         provisioning.addAttribute(new ProductAttribute(PRODUCT_PROVISIONING, ""));
@@ -736,5 +721,127 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
         assertEquals(1, results.get(1).getQuantity().intValue());
     }
 
+    @Test
+    public void testCleanupExpiredPools() {
+        long ct = System.currentTimeMillis();
+        Date activeStart = new Date(ct + 3600000);
+        Date activeEnd = new Date(ct + 7200000);
+        Date expiredStart = new Date(ct - 7200000);
+        Date expiredEnd = new Date(ct - 3600000);
+
+        Owner owner = this.createOwner();
+        Product product1 = this.createProduct(owner, "test-product-1", "Test Product 1");
+        Product product2 = this.createProduct(owner, "test-product-2", "Test Product 2");
+        Pool activePool = this.createPool(owner, product1, 1L, activeStart, activeEnd);
+        Pool expiredPool = this.createPool(owner, product2, 1L, expiredStart, expiredEnd);
+
+        try {
+            this.beginTransaction();
+            this.poolManager.cleanupExpiredPools();
+            this.commitTransaction();
+        }
+        catch (RuntimeException e) {
+            this.rollbackTransaction();
+            throw e;
+        }
+
+        assertNotNull(this.poolCurator.find(activePool.getId()));
+        assertNull(this.poolCurator.find(expiredPool.getId()));
+    }
+
+    @Test
+    public void testCleanupExpiredPoolsWithEntitlementEndDateOverrides() {
+        long ct = System.currentTimeMillis();
+        Date activeStart = new Date(ct + 3600000);
+        Date activeEnd = new Date(ct + 7200000);
+        Date expiredStart = new Date(ct - 7200000);
+        Date expiredEnd = new Date(ct - 3600000);
+
+        Owner owner = this.createOwner();
+        List<Consumer> consumers = new LinkedList<Consumer>();
+        List<Product> products = new LinkedList<Product>();
+        List<Pool> pools = new LinkedList<Pool>();
+        List<Entitlement> entitlements = new LinkedList<Entitlement>();
+
+        int objCount = 6;
+
+        for (int i = 0; i < objCount; ++i) {
+            Consumer consumer = this.createConsumer(owner);
+            Product product = this.createProduct(owner, "test-product-" + i, "Test Product " + i);
+            Pool pool = (i % 2 == 0) ? this.createPool(owner, product, 1L, activeStart, activeEnd) :
+                this.createPool(owner, product, 1L, expiredStart, expiredEnd);
+
+            consumers.add(consumer);
+            products.add(product);
+            pools.add(pool);
+        }
+
+        entitlements.add(this.createEntitlement(owner, consumers.get(0), pools.get(2), null));
+        entitlements.add(this.createEntitlement(owner, consumers.get(1), pools.get(3), null));
+        entitlements.add(this.createEntitlement(owner, consumers.get(2), pools.get(4), null));
+        entitlements.add(this.createEntitlement(owner, consumers.get(3), pools.get(5), null));
+        entitlements.get(0).setEndDateOverride(activeEnd);
+        entitlements.get(1).setEndDateOverride(activeEnd);
+        entitlements.get(2).setEndDateOverride(expiredEnd);
+        entitlements.get(3).setEndDateOverride(expiredEnd);
+
+        for (Entitlement entitlement : entitlements) {
+            this.entitlementCurator.merge(entitlement);
+        }
+
+        try {
+            this.beginTransaction();
+            this.poolManager.cleanupExpiredPools();
+            this.commitTransaction();
+        }
+        catch (RuntimeException e) {
+            this.rollbackTransaction();
+            throw e;
+        }
+
+        assertNotNull(this.poolCurator.find(pools.get(0).getId())); // Active pool, no ent
+        assertNull(this.poolCurator.find(pools.get(1).getId()));    // Expired pool, no ent
+        assertNotNull(this.poolCurator.find(pools.get(2).getId())); // Active pool, active ent
+        assertNotNull(this.poolCurator.find(pools.get(3).getId())); // Expired pool, active ent
+        assertNotNull(this.poolCurator.find(pools.get(4).getId())); // Active pool, expired ent
+        assertNull(this.poolCurator.find(pools.get(5).getId()));    // Expired pool, expired ent
+    }
+
+    @Test
+    public void testCleanupExpiredNonDerivedPools() {
+        long ct = System.currentTimeMillis();
+        Date activeStart = new Date(ct + 3600000);
+        Date activeEnd = new Date(ct + 7200000);
+        Date expiredStart = new Date(ct - 7200000);
+        Date expiredEnd = new Date(ct - 3600000);
+
+        Owner owner = this.createOwner();
+        Product product1 = this.createProduct(owner, "test-product-1", "Test Product 1");
+        Product product2 = this.createProduct(owner, "test-product-2", "Test Product 2");
+        Pool pool1 = this.createPool(owner, product1, 1L, activeStart, activeEnd);
+        Pool pool2 = this.createPool(owner, product2, 1L, expiredStart, expiredEnd);
+        Pool pool3 = this.createPool(owner, product2, 1L, activeStart, activeEnd);
+        Pool pool4 = this.createPool(owner, product2, 1L, expiredStart, expiredEnd);
+
+        pool3.setAttribute(Pool.DERIVED_POOL_ATTRIBUTE, "true");
+        pool4.setAttribute(Pool.DERIVED_POOL_ATTRIBUTE, "true");
+        this.poolCurator.merge(pool3);
+        this.poolCurator.merge(pool4);
+
+        try {
+            this.beginTransaction();
+            this.poolManager.cleanupExpiredPools();
+            this.commitTransaction();
+        }
+        catch (RuntimeException e) {
+            this.rollbackTransaction();
+            throw e;
+        }
+
+        assertNotNull(this.poolCurator.find(pool1.getId()));        // Active pool, no attrib
+        assertNull(this.poolCurator.find(pool2.getId()));           // Expired pool, no attrib
+        assertNotNull(this.poolCurator.find(pool3.getId()));        // Active pool, derived attrib
+        assertNotNull(this.poolCurator.find(pool4.getId()));        // Expired pool, derived attrib
+    }
 }
 

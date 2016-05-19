@@ -585,6 +585,8 @@ public class CandlepinPoolManager implements PoolManager {
         int count = 0;
         boolean loop = false;
 
+        log.debug("Beginning cleanup expired pools job");
+
         do {
             // This call is run within a new transaction if we're not already in a transaction
             int blockSize = this.cleanupExpiredPoolsImpl();
@@ -1685,11 +1687,13 @@ public class CandlepinPoolManager implements PoolManager {
             //to have access to those products later in this method.
             ent.getPool().getProvidedProducts().size();
             Pool pool = ent.getPool();
-            pool.setConsumed(pool.getConsumed() - ent.getQuantity());
+            int entQuantity = ent.getQuantity() != null ? ent.getQuantity() : 0;
+
+            pool.setConsumed(pool.getConsumed() - entQuantity);
             pool.getEntitlements().remove(ent);
             Consumer consumer = ent.getConsumer();
             if (consumer.getType().isManifest()) {
-                pool.setExported(pool.getExported() - ent.getQuantity());
+                pool.setExported(pool.getExported() - entQuantity);
             }
         }
 

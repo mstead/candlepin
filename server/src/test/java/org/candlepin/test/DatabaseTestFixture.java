@@ -37,6 +37,8 @@ import org.candlepin.model.ConsumerTypeCurator;
 import org.candlepin.model.ContentCurator;
 import org.candlepin.model.Entitlement;
 import org.candlepin.model.EntitlementCertificate;
+import org.candlepin.model.EntitlementCertificateCurator;
+import org.candlepin.model.EntitlementCurator;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
 import org.candlepin.model.PermissionBlueprint;
@@ -70,6 +72,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -86,6 +90,7 @@ import javax.servlet.http.HttpServletResponse;
  * Test fixture for test classes requiring access to the database.
  */
 public class DatabaseTestFixture {
+    private static Logger log = LoggerFactory.getLogger(DatabaseTestFixture.class);
 
     private static final String DEFAULT_CONTRACT = "SUB349923";
     private static final String DEFAULT_ACCOUNT = "ACC123";
@@ -103,6 +108,8 @@ public class DatabaseTestFixture {
     @Inject protected ConsumerTypeCurator consumerTypeCurator;
     @Inject protected CertificateSerialCurator certSerialCurator;
     @Inject protected ContentCurator contentCurator;
+    @Inject protected EntitlementCurator entitlementCurator;
+    @Inject protected EntitlementCertificateCurator entitlementCertCurator;
     @Inject protected SubscriptionServiceAdapter subAdapter;
     @Inject protected ResourceLocatorMap locatorMap;
 
@@ -210,15 +217,19 @@ public class DatabaseTestFixture {
     protected void rollbackTransaction() {
         entityManager().getTransaction().rollback();
     }
+
+    protected Product createProduct(Owner owner, String productId, String productName) {
+        Product product = new Product(productId, productName, owner);
+        return this.productCurator.create(product);
+    }
+
     /**
      * Create an entitlement pool.
      *
      * @return an entitlement pool
      */
-    protected Pool createPool(Owner owner, Product product, Long quantity, Date startDate,
-        Date endDate) {
-
-        Pool p = new Pool(
+    protected Pool createPool(Owner owner, Product product, Long quantity, Date startDate, Date endDate) {
+        Pool pool = new Pool(
             owner,
             product,
             new HashSet<Product>(),
@@ -230,8 +241,8 @@ public class DatabaseTestFixture {
             DEFAULT_ORDER
         );
 
-        p.setSourceSubscription(new SourceSubscription(Util.generateDbUUID(), "master"));
-        return poolCurator.create(p);
+        pool.setSourceSubscription(new SourceSubscription(Util.generateDbUUID(), "master"));
+        return poolCurator.create(pool);
     }
 
     protected Owner createOwner() {
@@ -241,8 +252,7 @@ public class DatabaseTestFixture {
     }
 
     protected Consumer createConsumer(Owner owner) {
-        ConsumerType type = new ConsumerType("test-consumer-type-" +
-            TestUtil.randomInt());
+        ConsumerType type = new ConsumerType("test-consumer-type-" + TestUtil.randomInt());
         consumerTypeCurator.create(type);
         Consumer c = new Consumer("test-consumer", "test-user", owner, type);
         consumerCurator.create(c);
@@ -253,19 +263,39 @@ public class DatabaseTestFixture {
         return TestUtil.createActivationKey(owner, null);
     }
 
-    protected Entitlement createEntitlement(Owner owner, Consumer consumer,
-        Pool pool, EntitlementCertificate cert) {
-        return TestUtil.createEntitlement(owner, consumer, pool, cert);
+    protected Entitlement createEntitlement(Owner owner, Consumer consumer, Pool pool,
+        EntitlementCertificate cert) {
+
+        Entitlement entitlement = new Entitlement();
+        entitlement.setOwner(owner);
+        entitlement.setPool(pool);
+        entitlement.setConsumer(consumer);
+
+        this.entitlementCurator.create(entitlement);
+
+        // Maintain runtime consistency
+        consumer.addEntitlement(entitlement);
+        pool.getEntitlements().add(entitlement);
+
+        if (cert != null) {
+            cert.setEntitlement(entitlement);
+            entitlement.getCertificates().add(cert);
+
+            this.entitlementCertCurator.merge(cert);
+            this.entitlementCurator.merge(entitlement);
+        }
+
+        return entitlement;
     }
 
-    protected EntitlementCertificate createEntitlementCertificate(String key,
-        String cert) {
+    protected EntitlementCertificate createEntitlementCertificate(String key, String cert) {
         EntitlementCertificate toReturn = new EntitlementCertificate();
         CertificateSerial certSerial = new CertificateSerial(new Date());
         certSerialCurator.create(certSerial);
         toReturn.setKeyAsBytes(key.getBytes());
         toReturn.setCertAsBytes(cert.getBytes());
         toReturn.setSerial(certSerial);
+
         return toReturn;
     }
 
