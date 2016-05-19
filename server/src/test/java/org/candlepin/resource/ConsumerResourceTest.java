@@ -745,7 +745,7 @@ public class ConsumerResourceTest {
             null, null, null, null, null, i18n, null, null, null,
             null, null, null, null, null, null, null, null, null,
             null, null, null, new CandlepinCommonTestConfig(),
-            null, null, null, null));
+            null, null, null, null, null));
         List<GuestId> startGuests  = new ArrayList<GuestId>();
         List<GuestId> updatedGuests  = new ArrayList<GuestId>();
         VirtConsumerMap guestConsumerMap = new VirtConsumerMap();

@@ -1199,7 +1199,7 @@ public class OwnerResource {
     @ApiResponses({ @ApiResponse(code = 400, message = ""),
         @ApiResponse(code = 404, message = "Owner not found"), @ApiResponse(code = 500, message = ""),
         @ApiResponse(code = 409, message = "") })
-    public ImportRecord importManifest(
+    public Response importManifest(
         @PathParam("owner_key") @Verify(Owner.class) String ownerKey,
         @QueryParam("force") String[] overrideConflicts,
         @QueryParam("async") @DefaultValue("false") boolean async, MultipartInput input) {

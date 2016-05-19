@@ -1131,7 +1131,7 @@ public class OwnerResourceTest extends DatabaseTestFixture {
             null, i18n, es, null, null, null, importer, null, null,
             null, null, importRecordCurator, null, null, null,
             null, null, null, contentOverrideValidator,
-            serviceLevelValidator, null, null, null);
+            serviceLevelValidator, null, null, null, null, null);
 
         MultipartInput input = mock(MultipartInput.class);
         InputPart part = mock(InputPart.class);
@@ -1165,7 +1165,7 @@ public class OwnerResourceTest extends DatabaseTestFixture {
             null, i18n, es, null, null, null, importer, null, null,
             null, null, importRecordCurator, null, null, null,
             null, null, null, contentOverrideValidator,
-            serviceLevelValidator, null, null, null);
+            serviceLevelValidator, null, null, null, null, null);
 
         MultipartInput input = mock(MultipartInput.class);
         InputPart part = mock(InputPart.class);
