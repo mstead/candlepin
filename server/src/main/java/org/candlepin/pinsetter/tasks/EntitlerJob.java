@@ -23,8 +23,8 @@ import org.candlepin.model.Consumer;
 import org.candlepin.model.ConsumerCurator;
 import org.candlepin.model.Entitlement;
 import org.candlepin.model.JobCurator;
-import org.candlepin.model.PoolCurator;
 import org.candlepin.model.Pool;
+import org.candlepin.model.PoolCurator;
 import org.candlepin.model.dto.PoolIdAndErrors;
 import org.candlepin.model.dto.PoolIdAndQuantity;
 import org.candlepin.pinsetter.core.model.JobStatus;
@@ -36,6 +36,7 @@ import org.candlepin.util.Util;
 
 import com.google.inject.Inject;
 
+import org.hibernate.exception.LockAcquisitionException;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
@@ -47,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -75,47 +77,59 @@ public class EntitlerJob extends KingpinJob {
 
     @Override
     public void toExecute(JobExecutionContext ctx) throws JobExecutionException {
-        try {
-            JobDataMap map = ctx.getMergedJobDataMap();
-            String uuid = (String) map.get(JobStatus.TARGET_ID);
-            PoolIdAndQuantity[] poolQuantities = (PoolIdAndQuantity[]) map.get("pool_and_quantities");
-            Map<String, Integer> poolMap = new HashMap<String, Integer>();
-            for (PoolIdAndQuantity poolIdAndQuantity : poolQuantities) {
-                poolMap.put(poolIdAndQuantity.getPoolId(), poolIdAndQuantity.getQuantity());
+//        try {
+            //Debugging of Entitler Job
+            log.info("ENTITLING");
+            try {
+                Thread.sleep(20000);
             }
-            List<Entitlement> ents = entitler.bindByPoolQuantities(uuid, poolMap);
-            entitler.sendEvents(ents);
-
-            PoolIdAndQuantity[] consumed = new PoolIdAndQuantity[ents.size()];
-            for (int i = 0; i < ents.size(); i++) {
-                consumed[i] = new PoolIdAndQuantity(ents.get(i).getPool().getId(), ents.get(i)
-                        .getQuantity());
+            catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
-            ctx.setResult(consumed);
-            poolCurator.clear();
-        }
-        catch (EntitlementRefusedException e) {
-            log.error("EntitlerJob encountered a problem, translating errors", e);
-            Map<String, ValidationResult> validationResults = e.getResults();
-            List<Pool> pools = poolCurator.listAllByIds(validationResults.keySet());
-
-            EntitlementRulesTranslator translator = new EntitlementRulesTranslator(i18n);
-            List<PoolIdAndErrors> poolErrors = new ArrayList<PoolIdAndErrors>();
-            for (Pool pool : pools) {
-                List<String> errorMessages = new ArrayList<String>();
-                for (ValidationError error : validationResults.get(pool.getId()).getErrors()) {
-                    errorMessages.add(translator.poolErrorToMessage(pool, error));
-                }
-                poolErrors.add(new PoolIdAndErrors(pool.getId(), errorMessages));
-            }
-            ctx.setResult(poolErrors);
-        }
-        // Catch any exception that is fired and re-throw as a JobExecutionException
-        // so that the job will be properly cleaned up on failure.
-        catch (Exception e) {
-            log.error("EntitlerJob encountered a problem.", e);
-            throw new JobExecutionException(e.getMessage(), e, false);
-        }
+            
+            throw new LockAcquisitionException("Lock ackq ex" , new SQLException("TRY AGAIN!"));
+            
+//            JobDataMap map = ctx.getMergedJobDataMap();
+//            String uuid = (String) map.get(JobStatus.TARGET_ID);
+//            PoolIdAndQuantity[] poolQuantities = (PoolIdAndQuantity[]) map.get("pool_and_quantities");
+//            Map<String, Integer> poolMap = new HashMap<String, Integer>();
+//            for (PoolIdAndQuantity poolIdAndQuantity : poolQuantities) {
+//                poolMap.put(poolIdAndQuantity.getPoolId(), poolIdAndQuantity.getQuantity());
+//            }
+//            List<Entitlement> ents = entitler.bindByPoolQuantities(uuid, poolMap);
+//            entitler.sendEvents(ents);
+//
+//            PoolIdAndQuantity[] consumed = new PoolIdAndQuantity[ents.size()];
+//            for (int i = 0; i < ents.size(); i++) {
+//                consumed[i] = new PoolIdAndQuantity(ents.get(i).getPool().getId(), ents.get(i)
+//                        .getQuantity());
+//            }
+//            ctx.setResult(consumed);
+//            poolCurator.clear();
+//        }
+//        catch (EntitlementRefusedException e) {
+//            log.error("EntitlerJob encountered a problem, translating errors", e);
+//            Map<String, ValidationResult> validationResults = e.getResults();
+//            List<Pool> pools = poolCurator.listAllByIds(validationResults.keySet());
+//
+//            EntitlementRulesTranslator translator = new EntitlementRulesTranslator(i18n);
+//            List<PoolIdAndErrors> poolErrors = new ArrayList<PoolIdAndErrors>();
+//            for (Pool pool : pools) {
+//                List<String> errorMessages = new ArrayList<String>();
+//                for (ValidationError error : validationResults.get(pool.getId()).getErrors()) {
+//                    errorMessages.add(translator.poolErrorToMessage(pool, error));
+//                }
+//                poolErrors.add(new PoolIdAndErrors(pool.getId(), errorMessages));
+//            }
+//            ctx.setResult(poolErrors);
+//        }
+//        // Catch any exception that is fired and re-throw as a JobExecutionException
+//        // so that the job will be properly cleaned up on failure.
+//        catch (Exception e) {
+//            log.error("EntitlerJob encountered a problem.", e);
+//            throw new JobExecutionException(e.getMessage(), e, false);
+//        }
     }
 
     public static JobDetail bindByPool(String poolId, Consumer consumer, Integer qty) {
