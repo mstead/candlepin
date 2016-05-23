@@ -61,6 +61,19 @@ public class OwnerCurator extends AbstractHibernateCurator<Owner> {
             .add(Restrictions.eq("key", key))
             .uniqueResult();
     }
+    
+    @Transactional
+    public List<Owner> lookUpByProduct(Product p) {
+        List<Owner> owners = getEntityManager()
+        .createQuery(
+            "SELECT o " +
+            "FROM OwnerProductLink op " +
+            "  JOIN op.product p" +
+            "  JOIN op.owner o "+
+            " WHERE p = :product", Owner.class)
+        .setParameter("product", p).getResultList();
+        return owners;
+    }
 
     @Transactional
     public List<Owner> lookupByKeys(Collection<String> keys) {

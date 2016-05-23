@@ -26,6 +26,8 @@ import org.candlepin.model.ImportRecord;
 import org.candlepin.model.ImportRecordCurator;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
+import org.candlepin.model.OwnerProductLinkCurator;
+import org.candlepin.model.OwnerProductLink;
 import org.candlepin.model.PermissionBlueprint;
 import org.candlepin.model.PermissionBlueprintCurator;
 import org.candlepin.model.Pool;
@@ -62,6 +64,7 @@ public class OwnerManager {
     @Inject private ContentManager contentManager;
     @Inject private OwnerCurator ownerCurator;
 
+   
     @Transactional
     public void cleanupAndDelete(Owner owner, boolean revokeCerts) {
         log.info("Cleaning up owner: " + owner);

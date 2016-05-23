@@ -60,7 +60,56 @@ public class ProductCurator extends AbstractHibernateCurator<Product> {
         this.config = config;
         this.i18n = i18n;
     }
+    
 
+    @Transactional
+    public List<Product> lookUpByOwner(Owner o) {
+        List<Product> products = getEntityManager()
+        .createQuery(
+            "SELECT p " +
+            "FROM OwnerProductLink op " +
+            "  JOIN op.product p" +
+            "  JOIN op.owner o "+
+            " WHERE o = :owner", Product.class)
+        .setParameter("owner", o).getResultList();
+        return products;
+    }
+    
+    /**
+     * Will copy links to Owner from Product src. Since
+     * the Product-Owner relationship is Many-to-Many   
+     * @param src
+     * @param dest
+     */
+    @Transactional
+    public void copyOwners(Product src, Product dest) {
+        List<String> ownerIds = getEntityManager()
+        .createQuery(
+            "SELECT DISTINCT op.owner.id " +
+            "FROM OwnerProductLink op " +
+            "WHERE op.product = :src", String.class)
+        .setParameter("src", src).getResultList();
+        
+        int batchSize = 1000;
+        int i = 1;
+        for (String id : ownerIds) {
+            OwnerProductLink newLink = new OwnerProductLink(id, dest.getUuid());
+            getEntityManager().persist(newLink);
+            
+            /**
+             * Batch inserts. 
+             */
+            if (i % batchSize == 0 ){
+                i=0;
+                getEntityManager().flush();
+                getEntityManager().clear();
+            } else {
+                i++;
+            }
+                
+        }
+        getEntityManager().flush();
+    }
     /**
      * Retrieves a Product instance for the product with the specified name. If a matching product
      * could not be found, this method returns null.

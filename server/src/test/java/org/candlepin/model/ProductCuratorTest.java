@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009 - 2012 Red Hat, Inc.
+ * Copyright (c) 2009 - 2012 Red Hat, Inc.	
  *
  * This software is licensed to you under the GNU General Public License,
  * version 2 (GPLv2). There is NO WARRANTY for this software, express or
@@ -14,8 +14,12 @@
  */
 package org.candlepin.model;
 
-import static org.junit.Assert.*;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.exceptions.BadRequestException;
@@ -53,7 +57,7 @@ public class ProductCuratorTest extends DatabaseTestFixture {
     @Inject private PoolCurator poolCurator;
     @Inject private ContentCurator contentCurator;
     @Inject private Configuration config;
-
+    
     private Owner owner;
     private Product product;
     private Product derivedProduct;
@@ -113,6 +117,35 @@ public class ProductCuratorTest extends DatabaseTestFixture {
         poolCurator.create(pool);
     }
 
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void copyOwners() {
+        Owner o2 = createOwner();
+        ownerCurator.create(o2);
+        Product prod1 = new Product("cptest-label1", "My Product 1", owner);
+        prod1.addOwner(o2);
+        Product prod2 = new Product("cptest-label2", "My Product 2", null);
+        
+        productCurator.create(prod1);
+        productCurator.create(prod2);        
+        productCurator.clear();
+        
+        List<Owner> ownersForProd2 = ownerCurator.lookUpByProduct(prod2);        
+        assertEquals(0, ownersForProd2.size());        
+        productCurator.copyOwners(prod1, prod2);        
+        productCurator.clear();
+        ownersForProd2 = ownerCurator.lookUpByProduct(prod2);
+        ownersForProd2 = ownerCurator.lookUpByProduct(prod2);        
+        assertEquals(2, ownersForProd2.size());        
+        
+        productCurator.clear();
+        
+        List<Product> p = productCurator.lookUpByOwner(o2);
+        p = productCurator.lookUpByOwner(owner);
+    }
+    
+    
     @Test
     @SuppressWarnings("unchecked")
     public void normalCreate() {

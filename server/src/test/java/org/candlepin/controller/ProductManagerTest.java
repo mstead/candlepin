@@ -23,6 +23,7 @@ import org.candlepin.common.config.Configuration;
 import org.candlepin.config.CandlepinCommonTestConfig;
 import org.candlepin.model.Content;
 import org.candlepin.model.Owner;
+import org.candlepin.model.OwnerProductLinkCurator;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductCurator;
 import org.candlepin.test.TestUtil;
@@ -49,7 +50,7 @@ public class ProductManagerTest {
 
     @Mock private ProductCurator mockProductCurator;
     @Mock private EntitlementCertificateGenerator mockEntCertGenerator;
-
+    @Mock private OwnerProductLinkCurator ownerProductCurator;
     private ProductManager productManager;
 
     @Before
@@ -57,7 +58,7 @@ public class ProductManagerTest {
         this.config = new CandlepinCommonTestConfig();
 
         this.productManager = new ProductManager(
-            this.mockProductCurator, this.mockEntCertGenerator, this.config
+            this.mockProductCurator, this.mockEntCertGenerator, this.config,  this.ownerProductCurator 
         );
 
         doAnswer(returnsFirstArg()).when(this.mockProductCurator).merge(any(Product.class));

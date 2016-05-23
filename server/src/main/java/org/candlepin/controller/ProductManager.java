@@ -17,6 +17,7 @@ package org.candlepin.controller;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.model.Content;
 import org.candlepin.model.Owner;
+import org.candlepin.model.OwnerProductLinkCurator;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductContent;
 import org.candlepin.model.ProductCurator;
@@ -48,15 +49,16 @@ public class ProductManager {
 
     private ProductCurator productCurator;
     private EntitlementCertificateGenerator entitlementCertGenerator;
-
+    
     @Inject
     public ProductManager(ProductCurator productCurator,
-        EntitlementCertificateGenerator entitlementCertGenerator, Configuration config) {
+        EntitlementCertificateGenerator entitlementCertGenerator, Configuration config,
+        OwnerProductLinkCurator ownerProductCurator) {
 
         this.productCurator = productCurator;
         this.entitlementCertGenerator = entitlementCertGenerator;
     }
-
+    
     /**
      * Creates a new Product for the given owner, potentially using a different version than the
      * entity provided if a matching entity has already been registered for another owner.
