@@ -57,7 +57,7 @@ public class ProductCuratorTest extends DatabaseTestFixture {
     @Inject private PoolCurator poolCurator;
     @Inject private ContentCurator contentCurator;
     @Inject private Configuration config;
-    
+    @Inject private OwnerProductLinkCurator ownerProductLinkCurator;
     private Owner owner;
     private Product product;
     private Product derivedProduct;
@@ -143,6 +143,11 @@ public class ProductCuratorTest extends DatabaseTestFixture {
         
         List<Product> p = productCurator.lookUpByOwner(o2);
         p = productCurator.lookUpByOwner(owner);
+        
+        System.out.println(ownerProductLinkCurator.getOwnerCount(prod1));
+        ownerProductLinkCurator.deleteLinksToForProduct(prod1);
+        System.out.println(ownerProductLinkCurator.getOwnerCount(prod1));
+        
     }
     
     

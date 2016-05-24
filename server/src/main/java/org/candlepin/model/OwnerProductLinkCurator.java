@@ -24,12 +24,31 @@ public class OwnerProductLinkCurator extends AbstractHibernateCurator<OwnerProdu
     public OwnerProductLinkCurator() {
         super(OwnerProductLink.class);
     }
-
+    
+    @Transactional
+    public Long getOwnerCount(Product p){
+        return getEntityManager()
+            .createQuery("SELECT count(op) FROM OwnerProductLink op " +
+                "WHERE op.product = :product", 
+                Long.class)
+            .setParameter("product", p)
+            .getSingleResult() ;
+     }
+    
+    @Transactional
+    public void deleteLinksToForProduct(Product p) {
+        getEntityManager().createQuery(
+            "DELETE FROM OwnerProductLink op " 
+                 + "WHERE op.product = :product")
+            .setParameter("product", p).executeUpdate();
+    }
+    
     @Transactional
     @Override
     public OwnerProductLink create(OwnerProductLink entity) {
         return super.create(entity);
     }
+    
     @Transactional
     public void addOwnerToProduct(Product p, Owner o){
         if (!ownerHasProduct(o, p)){
@@ -39,7 +58,7 @@ public class OwnerProductLinkCurator extends AbstractHibernateCurator<OwnerProdu
     }
     public boolean ownerHasProduct(Owner o, Product p) {
         return getEntityManager()
-        .createQuery("SELECT count(op) FROM OwnerProducts op WHERE op.owner = :owner AND op.product = :product", 
+        .createQuery("SELECT count(op) FROM OwnerProductLink op WHERE op.owner = :owner AND op.product = :product", 
             Long.class)
         .setParameter("owner", o)
         .setParameter("product", p)
