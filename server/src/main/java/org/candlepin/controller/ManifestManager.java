@@ -177,7 +177,7 @@ public class ManifestManager {
         try {
             export = exporter.getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
             ManifestFile manifestFile = storeExport(export, consumer);
-            return new ExportResult(consumer, manifestFile.getId());
+            return new ExportResult(consumer.getUuid(), manifestFile.getId());
         }
         catch (ManifestServiceException e) {
             throw new ExportCreationException("Unable to create export archive", e);
@@ -267,7 +267,7 @@ public class ManifestManager {
      * @throws ManifestServiceException
      */
     @Transactional
-    private ManifestFile storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
+    protected ManifestFile storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
         // TODO: Check to see if we are allowed to do this based on the principal.
         // Only allow a single export for a consumer at a time. Delete all others before
         // storing the new one.

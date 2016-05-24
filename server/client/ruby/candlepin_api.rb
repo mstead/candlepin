@@ -486,10 +486,15 @@ class Candlepin
     do_consumer_export(path, dest_dir, params)
   end
 
-  def export_consumer_async(uuid=nil, params={})
+  def export_consumer_async(params={}, uuid=nil)
     uuid = @uuid unless uuid
     path = "/consumers/#{uuid}/export/async"
     do_consumer_export(path, nil, params)
+  end
+
+  def download_consumer_export(uuid, export_id, dest_dir)
+    path = "/consumers/#{uuid}/export/download?export_id=#{export_id}"
+    get_file(path, dest_dir)
   end
 
   def do_consumer_export(path, dest_dir, params)

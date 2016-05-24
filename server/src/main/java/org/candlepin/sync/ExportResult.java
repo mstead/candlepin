@@ -2,27 +2,36 @@ package org.candlepin.sync;
 
 import java.io.Serializable;
 
-import org.candlepin.model.Consumer;
-
 /**
  * Represents the result from an async export job. This class simply defines
- * the appropriate link back to the generated export file
+ * the appropriate meta data to create a link to download the manifest.
  *
  */
 public class ExportResult implements Serializable {
 
-    private String manifestHref;
+    // FIXME This will prevent correcting paths if it changes.
+    //       Store the essentials that are required to formulate the path.
+    private String exportedConsumer;
+    private String exportId;
+    private String href;
 
-    public ExportResult(Consumer target, String exportId) {
-        manifestHref = String.format("/consumers/%s/export/%s", target.getUuid(), exportId);
+    public ExportResult(String exportedConsumer, String exportId) {
+        this.exportedConsumer = exportedConsumer;
+        this.exportId = exportId;
+        this.href = String.format("/consumers/%s/export/download?export_id=%s", this.exportedConsumer,
+            this.exportId);
     }
 
-    public String getManifestHref() {
-        return manifestHref;
+    public String getExportedConsumer() {
+        return exportedConsumer;
     }
 
-    public void setManifestHref(String manifestHref) {
-        this.manifestHref = manifestHref;
+    public String getExportId() {
+        return exportId;
+    }
+
+    public String getHref() {
+        return this.href;
     }
 
 }
