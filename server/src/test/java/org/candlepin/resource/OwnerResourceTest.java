@@ -1152,10 +1152,9 @@ public class OwnerResourceTest extends DatabaseTestFixture {
         when(manifestManager.importManifest(eq(owner), any(File.class), eq("test_file.zip"),
             any(ConflictOverrides.class))).thenReturn(ir);
 
-        Response response = thisOwnerResource.importManifest(owner.getKey(), new String [] {}, false, input);
+        ImportRecord response = thisOwnerResource.importManifest(owner.getKey(), new String [] {}, input);
         assertNotNull(response);
-        assertTrue(response.getEntity() instanceof ImportRecord);
-        assertEquals(ir, response.getEntity());
+        assertEquals(ir, response);
     }
 
     @Test
@@ -1186,9 +1185,9 @@ public class OwnerResourceTest extends DatabaseTestFixture {
         when(manifestManager.importManifestAsync(eq(owner), any(File.class), eq("test_file.zip"),
                 any(ConflictOverrides.class))).thenReturn(job);
 
-        Response response = thisOwnerResource.importManifest(owner.getKey(), new String [] {}, true, input);
+        JobDetail response = thisOwnerResource.importManifestAsync(owner.getKey(), new String [] {}, input);
         assertNotNull(response);
-        assertEquals(job, response.getEntity());
+        assertEquals(job, response);
 
         verify(manifestManager, never()).importManifest(eq(owner), any(File.class), any(String.class),
             any(ConflictOverrides.class));
@@ -1223,7 +1222,7 @@ public class OwnerResourceTest extends DatabaseTestFixture {
             any(ConflictOverrides.class))).thenThrow(expectedException);
 
         try {
-            thisOwnerResource.importManifest(owner.getKey(), new String [] {}, false, input);
+            thisOwnerResource.importManifest(owner.getKey(), new String [] {}, input);
             fail("Expected IseException was not thrown");
         }
         catch (IseException ise) {

@@ -71,6 +71,7 @@ import org.candlepin.model.activationkeys.ActivationKey;
 import org.candlepin.model.activationkeys.ActivationKeyCurator;
 import org.candlepin.model.dto.Subscription;
 import org.candlepin.pinsetter.tasks.HealEntireOrgJob;
+import org.candlepin.pinsetter.tasks.ImportJob;
 import org.candlepin.pinsetter.tasks.RefreshPoolsJob;
 import org.candlepin.pinsetter.tasks.UndoImportsJob;
 import org.candlepin.resource.util.CalculatedAttributesUtil;
@@ -1183,6 +1184,8 @@ public class OwnerResource {
      * This will bring in any products, content, and subscriptions that were assigned to
      * the distributor who generated the manifest.
      *
+     * @deprecated use {@link ManifestResource}
+     *
      * @return a ImportRecord object if the import is successful.
      * @httpcode 400
      * @httpcode 404
@@ -1200,90 +1203,103 @@ public class OwnerResource {
     @ApiResponses({ @ApiResponse(code = 400, message = ""),
         @ApiResponse(code = 404, message = "Owner not found"), @ApiResponse(code = 500, message = ""),
         @ApiResponse(code = 409, message = "") })
-    public Response importManifest(
+    @Deprecated
+    public ImportRecord importManifest(
         @PathParam("owner_key") @Verify(Owner.class) String ownerKey,
         @QueryParam("force") String[] overrideConflicts,
-        @QueryParam("async") @DefaultValue("false") boolean async, MultipartInput input) {
+        MultipartInput input) {
 
-        if (overrideConflicts.length == 1) {
-            /*
-             * For backward compatibility, look for force=true and if found,
-             * treat it just like what it used to mean, ignore an old manifest
-             * creation date.
-             */
-            if (overrideConflicts[0].equalsIgnoreCase("true")) {
-                overrideConflicts = new String [] { "MANIFEST_OLD" };
-            }
-            else if (overrideConflicts[0].equalsIgnoreCase("false")) {
-                overrideConflicts = new String [] {};
-            }
-        }
-        if (log.isDebugEnabled()) {
-            for (String s : overrideConflicts) {
-                log.debug("Forcing conflict if encountered: " + s);
-            }
-        }
+        ConflictOverrides overrides = processConflictOverrideParams(overrideConflicts);
 
-        ConflictOverrides overrides = null;
-        try {
-            overrides = new ConflictOverrides(overrideConflicts);
-        }
-        catch (IllegalArgumentException e) {
-            throw new BadRequestException(i18n.tr("Unknown conflict to force"));
-        }
-
-        String filename = "";
+        UploadMetadata fileData = new UploadMetadata();
         Owner owner = findOwner(ownerKey);
+        // FIXME What was this used for? Feels like I may have broken this.
         Map<String, Object> data = new HashMap<String, Object>();
         try {
-            InputPart part = input.getParts().get(0);
-            MultivaluedMap<String, String> headers = part.getHeaders();
-            String contDis = headers.getFirst("Content-Disposition");
-            StringTokenizer st = new StringTokenizer(contDis, ";");
-            while (st.hasMoreTokens()) {
-                String entry = st.nextToken().trim();
-                if (entry.startsWith("filename")) {
-                    filename = entry.substring(entry.indexOf("=") + 2, entry.length() - 1);
-                    break;
-                }
-            }
-            File archive = part.getBody(new GenericType<File>() {
-            });
-            String archivePath = archive.getAbsolutePath();
-            log.info("Importing archive {} for owner {}", archivePath, owner.getDisplayName());
-            if (async) {
-                log.info("Running async import");
-                JobDetail importJob = manifestManager.importManifestAsync(owner, archive, filename, overrides);
-                return Response.status(Response.Status.OK)
-                        .type(MediaType.APPLICATION_JSON).entity(importJob).build();
-            }
-
-            ImportRecord importRecord = manifestManager.importManifest(owner, archive, filename, overrides);
-            return Response.status(Response.Status.OK)
-                    .type(MediaType.APPLICATION_JSON).entity(importRecord).build();
+            fileData = getArchiveFromResponse(input);
+            return manifestManager.importManifest(owner, fileData.getData(), fileData.getUploadedFilename(),
+                overrides);
         }
         catch (IOException e) {
-            manifestManager.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, fileData.getUploadedFilename());
             throw new IseException(i18n.tr("Error reading export archive"), e);
         }
         // These come back with internationalized messages, so we can transfer:
         catch (SyncDataFormatException e) {
-            manifestManager.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, fileData.getUploadedFilename());
             throw new BadRequestException(e.getMessage(), e);
         }
         catch (ImporterException e) {
-            manifestManager.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, fileData.getUploadedFilename());
             throw new IseException(e.getMessage(), e);
         }
         // Grab candlepin exceptions to record the error and then rethrow
         // to pass on the http return code
         catch (CandlepinException e) {
-            manifestManager.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, fileData.getUploadedFilename());
             throw e;
         }
         finally {
-            String head = async ? "Async import" : "Import";
-            log.info(head + " attempt completed for owner " + owner.getDisplayName());
+            log.info("Import attempt completed for owner {}", owner.getDisplayName());
+        }
+    }
+
+    /**
+     * Initiates an asynchronous manifest import for the given organization. The details of
+     * the started job can be obtained via the {@link JobResource}.
+     *
+     * This will bring in any products, content, and subscriptions that were assigned to
+     * the distributor who generated the manifest.
+     *
+     * @return a JobDetail object representing the newly started {@link ImportJob}.
+     * @httpcode 400
+     * @httpcode 404
+     * @httpcode 500
+     * @httpcode 200
+     * @httpcode 409
+     */
+    @POST
+    @Path("{owner_key}/imports/async")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @ApiOperation(notes = "Initiates an asynchronous manifest import for the given organization. " +
+        "This will bring in any products, content, and subscriptions that were " +
+        "assigned to the distributor who generated the manifest.", value = "Import Manifest")
+    @ApiResponses({ @ApiResponse(code = 400, message = ""),
+        @ApiResponse(code = 404, message = "Owner not found"), @ApiResponse(code = 500, message = ""),
+        @ApiResponse(code = 409, message = "") })
+    public JobDetail importManifestAsync(
+        @PathParam("owner_key") @Verify(Owner.class) String ownerKey,
+        @QueryParam("force") String[] overrideConflicts,
+        MultipartInput input) {
+
+        ConflictOverrides overrides = processConflictOverrideParams(overrideConflicts);
+
+        UploadMetadata fileData = new UploadMetadata();
+        Owner owner = findOwner(ownerKey);
+        // FIXME What was this used for? Feels like I may have broken this.
+        Map<String, Object> data = new HashMap<String, Object>();
+        try {
+            fileData = getArchiveFromResponse(input);
+            String archivePath = fileData.getData().getAbsolutePath();
+            log.info("Running async import of archive {} for owner {}", archivePath, owner.getDisplayName());
+            return manifestManager.importManifestAsync(owner, fileData.getData(),
+                fileData.getUploadedFilename(), overrides);
+        }
+        catch (IOException e) {
+            manifestManager.recordImportFailure(owner, data, e, fileData.getUploadedFilename());
+            throw new IseException(i18n.tr("Error reading export archive"), e);
+        }
+        catch (ImporterException e) {
+            manifestManager.recordImportFailure(owner, data, e, fileData.getUploadedFilename());
+            throw new IseException(e.getMessage(), e);
+        }
+        catch (CandlepinException e) {
+            manifestManager.recordImportFailure(owner, data, e, fileData.getUploadedFilename());
+            throw e;
+        }
+        finally {
+            log.info("Async import started for owner {}", owner.getDisplayName());
         }
     }
 
@@ -1444,4 +1460,76 @@ public class OwnerResource {
         return consumerCurator.getHypervisorsBulk(hypervisorIds, ownerKey);
     }
 
+    private ConflictOverrides processConflictOverrideParams(String[] overrideConflicts) {
+        if (overrideConflicts.length == 1) {
+            /*
+             * For backward compatibility, look for force=true and if found,
+             * treat it just like what it used to mean, ignore an old manifest
+             * creation date.
+             */
+            if (overrideConflicts[0].equalsIgnoreCase("true")) {
+                overrideConflicts = new String [] { "MANIFEST_OLD" };
+            }
+            else if (overrideConflicts[0].equalsIgnoreCase("false")) {
+                overrideConflicts = new String [] {};
+            }
+        }
+        if (log.isDebugEnabled()) {
+            for (String s : overrideConflicts) {
+                log.debug("Forcing conflict if encountered: " + s);
+            }
+        }
+
+        ConflictOverrides overrides = null;
+        try {
+            overrides = new ConflictOverrides(overrideConflicts);
+        }
+        catch (IllegalArgumentException e) {
+            throw new BadRequestException(i18n.tr("Unknown conflict to force"));
+        }
+        return overrides;
+    }
+
+    private UploadMetadata getArchiveFromResponse(MultipartInput input) throws IOException {
+        String filename = "";
+        InputPart part = input.getParts().get(0);
+        MultivaluedMap<String, String> headers = part.getHeaders();
+        String contDis = headers.getFirst("Content-Disposition");
+        StringTokenizer st = new StringTokenizer(contDis, ";");
+        while (st.hasMoreTokens()) {
+            String entry = st.nextToken().trim();
+            if (entry.startsWith("filename")) {
+                filename = entry.substring(entry.indexOf("=") + 2, entry.length() - 1);
+                break;
+            }
+        }
+        return new UploadMetadata(part.getBody(new GenericType<File>() {}), filename);
+    }
+
+    /**
+     * A private class that stores data related to a file upload request.
+     */
+    private class UploadMetadata {
+        private File data;
+        private String uploadedFilename;
+
+        public UploadMetadata(File data, String uploadedFilename) {
+            this.data = data;
+            this.uploadedFilename = uploadedFilename;
+        }
+
+        public UploadMetadata() {
+            this.data = null;
+            this.uploadedFilename = "";
+        }
+
+        public File getData() {
+            return data;
+        }
+
+        public String getUploadedFilename() {
+            return uploadedFilename;
+        }
+
+    }
 }

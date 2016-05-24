@@ -51,8 +51,7 @@ describe 'Import Test Group:', :serial => true do
 
     def import_and_wait
       lambda { |owner_key, export_file, param_map={}|
-        param_map[:async] = true
-        job = @cp.import(owner_key, export_file, param_map)
+        job = @cp.import_async(owner_key, export_file, param_map)
         # Wait a little longer here as import can take a bit of time
         wait_for_job(job["id"], 10)
         status = @cp.get_job(job["id"], true)
