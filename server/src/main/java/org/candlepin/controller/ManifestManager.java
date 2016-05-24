@@ -4,7 +4,9 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -13,6 +15,8 @@ import org.candlepin.common.exceptions.BadRequestException;
 import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.guice.PrincipalProvider;
 import org.candlepin.model.Consumer;
+import org.candlepin.model.ConsumerCurator;
+import org.candlepin.model.EntitlementCurator;
 import org.candlepin.model.ImportRecord;
 import org.candlepin.model.ManifestRecord.ManifestRecordType;
 import org.candlepin.pinsetter.tasks.ExportJob;
@@ -43,14 +47,21 @@ public class ManifestManager {
     private ManifestFileService manifestFileService;
     private Exporter exporter;
     private Importer importer;
+    private EntitlementCurator entitlementCurator;
+    private PoolManager poolManager;
+    private ConsumerCurator consumerCurator;
     private PrincipalProvider principalProvider;
 
     @Inject
     public ManifestManager(ManifestFileService manifestFileService, Exporter exporter, Importer importer,
+        ConsumerCurator consumerCurator, EntitlementCurator entitlementCurator, PoolManager poolManager,
         PrincipalProvider principalProvider) {
         this.manifestFileService = manifestFileService;
         this.exporter = exporter;
         this.importer = importer;
+        this.consumerCurator = consumerCurator;
+        this.entitlementCurator = entitlementCurator;
+        this.poolManager = poolManager;
         this.principalProvider = principalProvider;
     }
 
@@ -96,58 +107,6 @@ public class ManifestManager {
             uploadedFileName);
         deleteStoredManifest(manifest.getId());
         return importResult;
-    }
-
-    /**
-     * Gets a manifest matching the specified id. A files id should be
-     * a unique identifier such as a database entity ID, or a file path.
-     *
-     * @param id the id of the target manifest.
-     * @return a {@link ManifestFile} matching the id, null otherwise.
-     */
-    public ManifestFile getFile(String id) throws ManifestServiceException {
-        return manifestFileService.get(id);
-    }
-
-    /**
-     * Deletes a manifest matching the specified id.
-     *
-     * @param id the id of the target manifest file.
-     * @return true if the record was deleted, false otherwise.
-     */
-    @Transactional
-    public boolean delete(String id) throws ManifestServiceException {
-        return manifestFileService.delete(id);
-    }
-
-    /**
-     * Stores the specified manifest import file.
-     *
-     * @param the manifest import {@link File} to store
-     * @return the id of the stored manifest file.
-     */
-    @Transactional
-    public ManifestFile storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
-        // Store the manifest record, and then store the file.
-        // TODO: Check to see if we are allowed to do this based on the principal.
-        return storeFile(importFile, ManifestRecordType.IMPORT, targetOwner.getKey());
-    }
-
-    /**
-     * Stores the specified manifest export file.
-     *
-     * @param exportFile the manifest export {@link File} to store.
-     * @return the id of the stored manifest file.
-     * @throws ManifestServiceException
-     */
-    @Transactional
-    public ManifestFile storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
-        // TODO: Check to see if we are allowed to do this based on the principal.
-        // Only allow a single export for a consumer at a time. Delete all others before
-        // storing the new one.
-        int count = manifestFileService.delete(ManifestRecordType.EXPORT, distributor.getUuid());
-        log.debug("Deleted {} existing export files for distributor {}.", count, distributor.getUuid());
-        return storeFile(exportFile, ManifestRecordType.EXPORT, distributor.getUuid());
     }
 
     /**
@@ -253,6 +212,68 @@ public class ManifestManager {
             // a cleaner job.
             log.warn("Could not delete import file by id: {}", manifestFileId, e);
         }
+    }
+
+    public File generateEntitlementArchive(String consumerUuid, Set<Long> serials)
+        throws ExportCreationException {
+        log.debug("Getting client certificate zip file for consumer: {}", consumerUuid);
+        Consumer consumer = consumerCurator.verifyAndLookupConsumer(consumerUuid);
+        poolManager.regenerateDirtyEntitlements(
+            entitlementCurator.listByConsumer(consumer));
+
+        return exporter.getEntitlementExport(consumer, serials);
+    }
+
+    /**
+     * Gets a manifest matching the specified id. A files id should be
+     * a unique identifier such as a database entity ID, or a file path.
+     *
+     * @param id the id of the target manifest.
+     * @return a {@link ManifestFile} matching the id, null otherwise.
+     */
+    private ManifestFile getFile(String id) throws ManifestServiceException {
+        return manifestFileService.get(id);
+    }
+
+    /**
+     * Deletes a manifest matching the specified id.
+     *
+     * @param id the id of the target manifest file.
+     * @return true if the record was deleted, false otherwise.
+     */
+    @Transactional
+    private boolean delete(String id) throws ManifestServiceException {
+        return manifestFileService.delete(id);
+    }
+
+    /**
+     * Stores the specified manifest import file.
+     *
+     * @param the manifest import {@link File} to store
+     * @return the id of the stored manifest file.
+     */
+    @Transactional
+    private ManifestFile storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
+        // Store the manifest record, and then store the file.
+        // TODO: Check to see if we are allowed to do this based on the principal.
+        return storeFile(importFile, ManifestRecordType.IMPORT, targetOwner.getKey());
+    }
+
+    /**
+     * Stores the specified manifest export file.
+     *
+     * @param exportFile the manifest export {@link File} to store.
+     * @return the id of the stored manifest file.
+     * @throws ManifestServiceException
+     */
+    @Transactional
+    private ManifestFile storeExport(File exportFile, Consumer distributor) throws ManifestServiceException {
+        // TODO: Check to see if we are allowed to do this based on the principal.
+        // Only allow a single export for a consumer at a time. Delete all others before
+        // storing the new one.
+        int count = manifestFileService.delete(ManifestRecordType.EXPORT, distributor.getUuid());
+        log.debug("Deleted {} existing export files for distributor {}.", count, distributor.getUuid());
+        return storeFile(exportFile, ManifestRecordType.EXPORT, distributor.getUuid());
     }
 
     private ManifestFile storeFile(File targetFile, ManifestRecordType type, String targetId)

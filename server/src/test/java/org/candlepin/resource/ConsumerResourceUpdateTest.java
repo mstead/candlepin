@@ -104,7 +104,7 @@ public class ConsumerResourceUpdateTest {
         this.resource = new ConsumerResource(this.consumerCurator,
             this.consumerTypeCurator, null, this.subscriptionService, null,
             this.idCertService, null, this.i18n, this.sink, this.eventFactory, null, null,
-            this.userService, null, poolManager, null, null,
+            this.userService, poolManager, null, null,
             this.activationKeyCurator, this.entitler, this.complianceRules,
             this.deletedConsumerCurator, this.environmentCurator, null,
             new CandlepinCommonTestConfig(), null, null, null, this.consumerBindUtil, null);

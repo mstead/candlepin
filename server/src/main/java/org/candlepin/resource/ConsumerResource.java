@@ -177,7 +177,6 @@ public class ConsumerResource {
     private EventCurator eventCurator;
     private EventAdapter eventAdapter;
     private static final int FEED_LIMIT = 1000;
-    private Exporter exporter;
     private PoolManager poolManager;
     private ConsumerRules consumerRules;
     private OwnerCurator ownerCurator;
@@ -202,8 +201,7 @@ public class ConsumerResource {
         IdentityCertServiceAdapter identityCertService,
         EntitlementCertServiceAdapter entCertServiceAdapter, I18n i18n,
         EventSink sink, EventFactory eventFactory, EventCurator eventCurator,
-        EventAdapter eventAdapter, UserServiceAdapter userService,
-        Exporter exporter, PoolManager poolManager,
+        EventAdapter eventAdapter, UserServiceAdapter userService, PoolManager poolManager,
         ConsumerRules consumerRules, OwnerCurator ownerCurator,
         ActivationKeyCurator activationKeyCurator, Entitler entitler,
         ComplianceRules complianceRules, DeletedConsumerCurator deletedConsumerCurator,
@@ -225,7 +223,6 @@ public class ConsumerResource {
         this.eventFactory = eventFactory;
         this.eventCurator = eventCurator;
         this.userService = userService;
-        this.exporter = exporter;
         this.poolManager = poolManager;
         this.consumerRules = consumerRules;
         this.ownerCurator = ownerCurator;
@@ -1253,11 +1250,6 @@ public class ConsumerResource {
         @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
         @QueryParam("serials") String serials) {
 
-        log.debug("Getting client certificate zip file for consumer: {}", consumerUuid);
-        Consumer consumer = consumerCurator.verifyAndLookupConsumer(consumerUuid);
-        poolManager.regenerateDirtyEntitlements(
-            entitlementCurator.listByConsumer(consumer));
-
         Set<Long> serialSet = this.extractSerials(serials);
         // filtering requires a null set, so make this null if it is
         // empty
@@ -1267,7 +1259,7 @@ public class ConsumerResource {
 
         File archive;
         try {
-            archive = exporter.getEntitlementExport(consumer, serialSet);
+            archive = manifestManager.generateEntitlementArchive(consumerUuid, serialSet);
             response.addHeader("Content-Disposition", "attachment; filename=" +
                 archive.getName());
 

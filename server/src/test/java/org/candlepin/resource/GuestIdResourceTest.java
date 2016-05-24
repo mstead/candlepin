@@ -262,7 +262,7 @@ public class GuestIdResourceTest {
 
         public ConsumerResourceForTesting() {
             super(null, null, null, null, null, null, null, null, null,
-                  null, null, null, null, null, null, null, null, null,
+                  null, null, null, null, null, null, null, null,
                   null, null, null, null, null, null, null, null, null, null, null);
         }
 
