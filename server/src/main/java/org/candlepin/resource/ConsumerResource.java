@@ -98,9 +98,7 @@ import org.candlepin.service.SubscriptionServiceAdapter;
 import org.candlepin.service.UserServiceAdapter;
 import org.candlepin.sync.ExportCreationException;
 import org.candlepin.sync.Exporter;
-import org.candlepin.sync.file.ManifestFile;
 import org.candlepin.util.Util;
-import org.hibernate.tool.hbm2x.ExporterException;
 
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
@@ -110,7 +108,6 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jboss.resteasy.annotations.providers.jaxb.Wrapped;
 import org.jboss.resteasy.plugins.providers.atom.Feed;
-import org.jboss.resteasy.spi.InternalServerErrorException;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.quartz.JobDetail;
 import org.slf4j.Logger;
@@ -1800,14 +1797,15 @@ public class ConsumerResource {
         poolManager.regenerateDirtyEntitlements(entitlementCurator.listByConsumer(consumer));
 
         if(async) {
-            JobDetail exportJobDetail = exporter.getFullExportAsync(consumer, cdnLabel, webAppPrefix, apiUrl);
+            JobDetail exportJobDetail =
+                manifestManager.generateManifestAsync(consumer, cdnLabel, webAppPrefix, apiUrl);
             return Response.status(Response.Status.OK)
                     .type(MediaType.APPLICATION_JSON).entity(exportJobDetail).build();
         }
 
         FileInputStream stream = null;
         try {
-            File archive = exporter.getFullExport(consumer, cdnLabel, webAppPrefix, apiUrl);
+            File archive = manifestManager.generateManifest(consumer, cdnLabel, webAppPrefix, apiUrl);
             stream = new FileInputStream(archive);
             sink.queueEvent(eventFactory.exportCreated(consumer));
             return Response.ok(stream, MediaType.APPLICATION_OCTET_STREAM)
@@ -1850,10 +1848,10 @@ public class ConsumerResource {
             //       like it would be a correct approach here, but large object streaming
             //       can only be done inside a single transaction, so we have to stream it
             //       manually.
-            manifestManager.readStoredExport(exportId, consumer, response);
+            manifestManager.readStoredExportToResponse(exportId, consumer, response);
 
             // On successful manifest read, delete the record.
-            exporter.deleteStoredExport(exportId);
+            manifestManager.deleteStoredManifest(exportId);
         }
         catch (Exception e) {
             ex = e;

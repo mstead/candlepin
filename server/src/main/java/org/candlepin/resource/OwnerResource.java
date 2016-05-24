@@ -37,6 +37,7 @@ import org.candlepin.common.paging.PageRequest;
 import org.candlepin.common.paging.Paginate;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.controller.ContentManager;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.controller.OwnerManager;
 import org.candlepin.controller.PoolManager;
 import org.candlepin.controller.ProductManager;
@@ -160,7 +161,7 @@ public class OwnerResource {
     private EventFactory eventFactory;
     private EventAdapter eventAdapter;
     private EventCurator eventCurator;
-    private Importer importer;
+    private ManifestManager manifestManager;
     private ExporterMetadataCurator exportCurator;
     private ImportRecordCurator importRecordCurator;
     private PoolManager poolManager;
@@ -187,7 +188,7 @@ public class OwnerResource {
         EventFactory eventFactory,
         EventCurator eventCurator,
         EventAdapter eventAdapter,
-        Importer importer,
+        ManifestManager manifestManager,
         PoolManager poolManager,
         OwnerManager ownerManager,
         ExporterMetadataCurator exportCurator,
@@ -215,10 +216,10 @@ public class OwnerResource {
         this.sink = sink;
         this.eventFactory = eventFactory;
         this.eventCurator = eventCurator;
-        this.importer = importer;
         this.exportCurator = exportCurator;
         this.importRecordCurator = importRecordCurator;
         this.poolManager = poolManager;
+        this.manifestManager = manifestManager;
         this.ownerManager = ownerManager;
         this.eventAdapter = eventAdapter;
         this.consumerTypeCurator = consumerTypeCurator;
@@ -1252,32 +1253,32 @@ public class OwnerResource {
             log.info("Importing archive {} for owner {}", archivePath, owner.getDisplayName());
             if (async) {
                 log.info("Running async import");
-                JobDetail importJob = importer.loadExportAsync(owner, archive, filename, overrides);
+                JobDetail importJob = manifestManager.importManifestAsync(owner, archive, filename, overrides);
                 return Response.status(Response.Status.OK)
                         .type(MediaType.APPLICATION_JSON).entity(importJob).build();
             }
 
-            ImportRecord importRecord = importer.loadExport(owner, archive, overrides, filename);
+            ImportRecord importRecord = manifestManager.importManifest(owner, archive, filename, overrides);
             return Response.status(Response.Status.OK)
                     .type(MediaType.APPLICATION_JSON).entity(importRecord).build();
         }
         catch (IOException e) {
-            importer.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, filename);
             throw new IseException(i18n.tr("Error reading export archive"), e);
         }
         // These come back with internationalized messages, so we can transfer:
         catch (SyncDataFormatException e) {
-            importer.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, filename);
             throw new BadRequestException(e.getMessage(), e);
         }
         catch (ImporterException e) {
-            importer.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, filename);
             throw new IseException(e.getMessage(), e);
         }
         // Grab candlepin exceptions to record the error and then rethrow
         // to pass on the http return code
         catch (CandlepinException e) {
-            importer.recordImportFailure(owner, data, e, filename);
+            manifestManager.recordImportFailure(owner, data, e, filename);
             throw e;
         }
         finally {

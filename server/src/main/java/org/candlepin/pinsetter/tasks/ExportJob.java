@@ -3,12 +3,11 @@ package org.candlepin.pinsetter.tasks;
 import static org.quartz.JobBuilder.newJob;
 
 import org.candlepin.common.exceptions.ForbiddenException;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.model.Consumer;
 import org.candlepin.model.ConsumerCurator;
 import org.candlepin.pinsetter.core.model.JobStatus;
-import org.candlepin.sync.ExportCreationException;
 import org.candlepin.sync.ExportResult;
-import org.candlepin.sync.Exporter;
 import org.candlepin.util.Util;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -28,13 +27,13 @@ public class ExportJob extends UniqueByEntityJob {
 
     private static Logger log = LoggerFactory.getLogger(ExportJob.class);
 
-    private Exporter exporter;
+    private ManifestManager manifestManager;
     private ConsumerCurator consumerCurator;
     private I18n i18n;
 
     @Inject
-    public ExportJob(Exporter exporter, ConsumerCurator consumerCurator, I18n i18n) {
-        this.exporter = exporter;
+    public ExportJob(ManifestManager manifestManager, ConsumerCurator consumerCurator, I18n i18n) {
+        this.manifestManager = manifestManager;
         this.consumerCurator = consumerCurator;
         this.i18n = i18n;
     }
@@ -51,7 +50,8 @@ public class ExportJob extends UniqueByEntityJob {
 
         log.info("Starting async export for {}", consumerUuid);
         try {
-            ExportResult result = exporter.generateAndStoreExport(consumer, cdnLabel, webAppPrefix, apiUrl);
+            ExportResult result =
+                manifestManager.generateAndStoreExport(consumer, cdnLabel, webAppPrefix, apiUrl);
             context.setResult(result);
             log.info("Async export complete.");
         }

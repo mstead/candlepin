@@ -37,6 +37,7 @@ import org.candlepin.common.paging.PageRequest;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.controller.CandlepinPoolManager;
 import org.candlepin.controller.ContentManager;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.controller.OwnerManager;
 import org.candlepin.controller.PoolManager;
 import org.candlepin.controller.ProductManager;
@@ -1125,13 +1126,13 @@ public class OwnerResourceTest extends DatabaseTestFixture {
     }
 
     public void testImportManifestSynchronousSuccess() throws IOException, ImporterException {
-        Importer importer = mock(Importer.class);
+        ManifestManager manifestManager = mock(ManifestManager.class);
         EventSink es = mock(EventSink.class);
-        OwnerResource thisOwnerResource = new OwnerResource(ownerCurator, null,
-            null, i18n, es, null, null, null, importer, null, null,
-            null, null, importRecordCurator, null, null, null,
-            null, null, null, contentOverrideValidator,
-            serviceLevelValidator, null, null, null, null, null);
+        OwnerResource thisOwnerResource = new OwnerResource(
+            ownerCurator, null, null, i18n, es, eventFactory, null, null, manifestManager, null, null, null,
+            null, importRecordCurator, null, null, null, null, null, null, contentOverrideValidator,
+            serviceLevelValidator, null, null, null, productManager, contentManager
+        );
 
         MultipartInput input = mock(MultipartInput.class);
         InputPart part = mock(InputPart.class);
@@ -1148,8 +1149,8 @@ public class OwnerResourceTest extends DatabaseTestFixture {
         when(part.getBody(any(GenericType.class))).thenReturn(archive);
 
         ImportRecord ir = new ImportRecord(owner);
-        when(importer.loadExport(eq(owner), any(File.class), any(ConflictOverrides.class),
-            eq("test_file.zip"))).thenReturn(ir);
+        when(manifestManager.importManifest(eq(owner), any(File.class), eq("test_file.zip"),
+            any(ConflictOverrides.class))).thenReturn(ir);
 
         Response response = thisOwnerResource.importManifest(owner.getKey(), new String [] {}, false, input);
         assertNotNull(response);
@@ -1159,13 +1160,13 @@ public class OwnerResourceTest extends DatabaseTestFixture {
 
     @Test
     public void testImportManifestAsyncSuccess() throws IOException, ImporterException {
-        Importer importer = mock(Importer.class);
+        ManifestManager manifestManager = mock(ManifestManager.class);
         EventSink es = mock(EventSink.class);
-        OwnerResource thisOwnerResource = new OwnerResource(ownerCurator, null,
-            null, i18n, es, null, null, null, importer, null, null,
-            null, null, importRecordCurator, null, null, null,
-            null, null, null, contentOverrideValidator,
-            serviceLevelValidator, null, null, null, null, null);
+        OwnerResource thisOwnerResource = new OwnerResource(
+            ownerCurator, null, null, i18n, es, eventFactory, null, null, manifestManager, null, null, null,
+            null, importRecordCurator, null, null, null, null, null, null, contentOverrideValidator,
+            serviceLevelValidator, null, null, null, productManager, contentManager
+        );
 
         MultipartInput input = mock(MultipartInput.class);
         InputPart part = mock(InputPart.class);
@@ -1182,24 +1183,24 @@ public class OwnerResourceTest extends DatabaseTestFixture {
         when(input.getParts()).thenReturn(parts);
         when(part.getHeaders()).thenReturn(mm);
         when(part.getBody(any(GenericType.class))).thenReturn(archive);
-        when(importer.loadExportAsync(eq(owner), any(File.class), eq("test_file.zip"),
+        when(manifestManager.importManifestAsync(eq(owner), any(File.class), eq("test_file.zip"),
                 any(ConflictOverrides.class))).thenReturn(job);
 
         Response response = thisOwnerResource.importManifest(owner.getKey(), new String [] {}, true, input);
         assertNotNull(response);
         assertEquals(job, response.getEntity());
 
-        verify(importer, never()).loadExport(eq(owner), any(File.class), any(ConflictOverrides.class),
-            any(String.class));
+        verify(manifestManager, never()).importManifest(eq(owner), any(File.class), any(String.class),
+            any(ConflictOverrides.class));
     }
 
     @Test
     public void testImportManifestFailure() throws IOException, ImporterException {
-        Importer importer = mock(Importer.class);
+        ManifestManager manifestManager = mock(ManifestManager.class);
         EventSink es = mock(EventSink.class);
         OwnerResource thisOwnerResource = new OwnerResource(
-            ownerCurator, null, null, i18n, es, eventFactory, null, null, importer, null, null, null, null,
-            importRecordCurator, null, null, null, null, null, null, contentOverrideValidator,
+            ownerCurator, null, null, i18n, es, eventFactory, null, null, manifestManager, null, null, null,
+            null, importRecordCurator, null, null, null, null, null, null, contentOverrideValidator,
             serviceLevelValidator, null, null, null, productManager, contentManager
         );
 
@@ -1218,8 +1219,8 @@ public class OwnerResourceTest extends DatabaseTestFixture {
         when(part.getBody(any(GenericType.class))).thenReturn(archive);
 
         ImporterException expectedException = new ImporterException("Bad import");
-        when(importer.loadExport(eq(owner), any(File.class), any(ConflictOverrides.class),
-            any(String.class))).thenThrow(expectedException);
+        when(manifestManager.importManifest(eq(owner), any(File.class), any(String.class),
+            any(ConflictOverrides.class))).thenThrow(expectedException);
 
         try {
             thisOwnerResource.importManifest(owner.getKey(), new String [] {}, false, input);
@@ -1229,7 +1230,7 @@ public class OwnerResourceTest extends DatabaseTestFixture {
             // expected, so we catch and go on.
         }
 
-        verify(importer).recordImportFailure(eq(owner), any(Map.class), eq(expectedException),
+        verify(manifestManager).recordImportFailure(eq(owner), any(Map.class), eq(expectedException),
             eq("test_file.zip"));
     }
 

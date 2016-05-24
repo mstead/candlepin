@@ -15,11 +15,8 @@
 package org.candlepin.sync;
 
 import org.candlepin.common.config.Configuration;
-import org.candlepin.common.exceptions.BadRequestException;
-import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.common.util.VersionUtil;
 import org.candlepin.config.ConfigProperties;
-import org.candlepin.controller.ManifestManager;
 import org.candlepin.guice.PrincipalProvider;
 import org.candlepin.model.Cdn;
 import org.candlepin.model.CdnCurator;
@@ -32,7 +29,6 @@ import org.candlepin.model.Entitlement;
 import org.candlepin.model.EntitlementCertificate;
 import org.candlepin.model.EntitlementCurator;
 import org.candlepin.model.IdentityCertificate;
-import org.candlepin.model.ManifestRecord;
 import org.candlepin.model.Pool;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductCertificate;
@@ -41,20 +37,16 @@ import org.candlepin.pki.PKIUtility;
 import org.candlepin.policy.js.export.ExportRules;
 import org.candlepin.service.EntitlementCertServiceAdapter;
 import org.candlepin.service.ProductServiceAdapter;
-import org.candlepin.sync.file.ManifestFile;
-import org.hibernate.tool.hbm2x.ExporterException;
 import org.quartz.JobDetail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.google.inject.persist.Transactional;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -62,7 +54,6 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -100,7 +91,6 @@ public class Exporter {
     private Configuration config;
     private ExportRules exportRules;
     private PrincipalProvider principalProvider;
-    private ManifestManager manifestManager;
 
     private static final String LEGACY_RULES_FILE = "/rules/default-rules.js";
 
@@ -115,8 +105,7 @@ public class Exporter {
         PrincipalProvider principalProvider, DistributorVersionCurator distVerCurator,
         DistributorVersionExporter distVerExporter,
         CdnCurator cdnCurator,
-        CdnExporter cdnExporter,
-        ManifestManager manifestManager) {
+        CdnExporter cdnExporter) {
 
         this.consumerTypeCurator = consumerTypeCurator;
 
@@ -139,7 +128,6 @@ public class Exporter {
         this.distVerExporter = distVerExporter;
         this.cdnCurator = cdnCurator;
         this.cdnExporter = cdnExporter;
-        this.manifestManager = manifestManager;
 
         mapper = SyncUtils.getObjectMapper(this.config);
     }
@@ -173,32 +161,6 @@ public class Exporter {
         catch (IOException e) {
             log.error("Error generating entitlement export", e);
             throw new ExportCreationException("Unable to create export archive", e);
-        }
-    }
-
-    public ExportResult generateAndStoreExport(Consumer consumer, String cdnKey, String webAppPrefix,
-        String apiUrl) throws ExportCreationException {
-        File export = null;
-        try {
-            export = getFullExport(consumer, cdnKey, webAppPrefix, apiUrl);
-            ManifestFile manifestFile = manifestManager.storeExport(export, consumer);
-            return new ExportResult(consumer, manifestFile.getId());
-        }
-        catch (ManifestServiceException e) {
-            throw new ExportCreationException("Unable to create export archive", e);
-        }
-        finally {
-            // We no longer need the export work directory since the archive has been saved in the DB.
-            if (export != null) {
-                File workDir = export.getParentFile();
-                try {
-                    FileUtils.deleteDirectory(workDir);
-                }
-                catch (IOException ioe) {
-                    // It'll get cleaned up by the ExportCleaner if it couldn't
-                    // be deleted for some reason.
-                }
-            }
         }
     }
 
@@ -674,21 +636,4 @@ public class Exporter {
         }
     }
 
-    public JobDetail getFullExportAsync(Consumer consumer, String cdnLabel, String webAppPrefix,
-        String apiUrl) {
-        log.info("Scheduling Async Export for consumer {}", consumer.getUuid());
-        return ExportJob.scheduleExport(consumer, cdnLabel, webAppPrefix, apiUrl);
-    }
-
-    public void deleteStoredExport(String id) {
-        try {
-            log.info("Deleting stored export file: {}", id);
-            manifestManager.delete(id);
-        }
-        catch (Exception e) {
-            // Just log any exception here. This will eventually get cleaned up by
-            // a cleaner job.
-            log.warn("Could not delete export file by id: {}", id, e);
-        }
-    }
 }

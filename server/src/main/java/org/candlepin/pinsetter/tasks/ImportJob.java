@@ -21,6 +21,7 @@ import java.util.HashMap;
 
 import org.candlepin.common.exceptions.BadRequestException;
 import org.candlepin.common.exceptions.IseException;
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.model.ImportRecord;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
@@ -53,15 +54,13 @@ public class ImportJob extends UniqueByEntityJob {
 
     private static Logger log = LoggerFactory.getLogger(ImportJob.class);
 
-    private Importer importer;
     private OwnerCurator ownerCurator;
-    private ManifestFileService manifestService;
+    private ManifestManager manifestManager;
 
     @Inject
-    public ImportJob(Importer importer, OwnerCurator ownerCurator, ManifestFileService manifestService) {
-        this.importer = importer;
+    public ImportJob(OwnerCurator ownerCurator, ManifestManager manifestManager) {
         this.ownerCurator = ownerCurator;
-        this.manifestService = manifestService;
+        this.manifestManager = manifestManager;
     }
 
     @Override
@@ -81,8 +80,8 @@ public class ImportJob extends UniqueByEntityJob {
                 return;
             }
 
-            ImportRecord importRecord =
-                importer.loadStoredExport(targetOwner, storedFileId, overrides, uploadedFileName);
+            ImportRecord importRecord = manifestManager.importStoredManifest(targetOwner,
+                storedFileId, overrides, uploadedFileName);
             context.setResult(importRecord);
         }
         // TODO We wrap the exceptions in CandlepinException so that we can get a
@@ -106,14 +105,14 @@ public class ImportJob extends UniqueByEntityJob {
 
         if (caught != null) {
             log.error("ImportJob encountered a problem.", caught);
-            importer.recordImportFailure(targetOwner, new HashMap<String, Object>(), caught,
+            manifestManager.recordImportFailure(targetOwner, new HashMap<String, Object>(), caught,
                 uploadedFileName);
             context.setResult(caught.getMessage());
             // If an exception was thrown, the importer's transaction was rolled
             // back. We want to make sure that the file gets deleted so that it
             // doesn't take up disk space. It may be possible that the file was
             // already deleted, but we attempt it anyway.
-            importer.deleteStoredManifest(storedFileId);
+            manifestManager.deleteStoredManifest(storedFileId);
             throw new JobExecutionException(caught.getMessage(), caught, false);
         }
     }

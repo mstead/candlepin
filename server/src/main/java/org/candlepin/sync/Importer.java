@@ -16,7 +16,6 @@ package org.candlepin.sync;
 
 import org.candlepin.audit.EventSink;
 import org.candlepin.common.config.Configuration;
-import org.candlepin.controller.ManifestManager;
 import org.candlepin.controller.PoolManager;
 import org.candlepin.controller.Refresher;
 import org.candlepin.model.Cdn;
@@ -34,14 +33,12 @@ import org.candlepin.model.IdentityCertificateCurator;
 import org.candlepin.model.ImportRecord;
 import org.candlepin.model.ImportRecordCurator;
 import org.candlepin.model.ImportUpstreamConsumer;
-import org.candlepin.model.ManifestRecord;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
 import org.candlepin.model.Product;
 import org.candlepin.model.ProductCurator;
 import org.candlepin.model.UpstreamConsumer;
 import org.candlepin.model.dto.Subscription;
-import org.candlepin.pinsetter.tasks.ImportJob;
 import org.candlepin.pki.PKIUtility;
 import org.candlepin.service.SubscriptionServiceAdapter;
 import org.candlepin.service.impl.ImportSubscriptionServiceAdapter;
@@ -54,7 +51,6 @@ import com.google.inject.persist.Transactional;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.hibernate.exception.ConstraintViolationException;
-import org.quartz.JobDetail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
@@ -140,7 +136,6 @@ public class Importer {
     private I18n i18n;
     private DistributorVersionCurator distVerCurator;
     private ImportRecordCurator importRecordCurator;
-    private ManifestManager manifestManager;
 
     @Inject
     public Importer(ConsumerTypeCurator consumerTypeCurator, ProductCurator productCurator,
@@ -150,8 +145,7 @@ public class Importer {
         PKIUtility pki, Configuration config, ExporterMetadataCurator emc,
         CertificateSerialCurator csc, EventSink sink, I18n i18n,
         DistributorVersionCurator distVerCurator,
-        CdnCurator cdnCurator, ImportRecordCurator importRecordCurator,
-        ManifestManager manifestManager) {
+        CdnCurator cdnCurator, ImportRecordCurator importRecordCurator) {
 
         this.config = config;
         this.consumerTypeCurator = consumerTypeCurator;
@@ -170,7 +164,6 @@ public class Importer {
         this.distVerCurator = distVerCurator;
         this.cdnCurator = cdnCurator;
         this.importRecordCurator = importRecordCurator;
-        this.manifestManager = manifestManager;
     }
 
     public ImportRecord loadExport(Owner owner, File archive, ConflictOverrides overrides,
@@ -185,17 +178,6 @@ public class Importer {
         }
     }
 
-    public JobDetail loadExportAsync(Owner owner, File archive, String uploadedFileName,
-            ConflictOverrides overrides) throws ImportExtractionException, IOException, ImporterException {
-        try {
-            ManifestFile manifestRecordId = manifestManager.storeImport(archive, owner);
-            return ImportJob.scheduleImport(owner, manifestRecordId.getId(), uploadedFileName, overrides);
-        }
-        catch (ManifestServiceException mse) {
-            throw new ImporterException("Unable to store manifest file", mse);
-        }
-    }
-
     /**
      * Loads a manifest from the {@link ManifestFileService}'s stored location.
      *
@@ -206,30 +188,13 @@ public class Importer {
      * @return the resulting {@link ImportRecord}
      * @throws ImporterException
      */
-    public ImportRecord loadStoredExport(Owner owner, String storedFileId, ConflictOverrides overrides,
+    public ImportRecord loadStoredExport(ManifestFile export, Owner owner, ConflictOverrides overrides,
         String uploadedFileName) throws ImporterException {
         try {
-            ImportRecord result = doExport(owner, extractFromService(storedFileId), overrides, uploadedFileName);
+            ImportRecord result = doExport(owner, extractFromService(export), overrides, uploadedFileName);
             return result;
         } catch (ManifestServiceException e) {
             throw new ImporterException("Could not load stored manifest file for async import", e);
-        }
-    }
-
-    /**
-     * Deletes the manifest file stored by the {@link ManifestFileService}.
-     *
-     * @param manifestFileId the ID of the manifest to be deleted.
-     */
-    public void deleteStoredManifest(String manifestFileId) {
-        try {
-            log.info("Deleting stored manifest file: {}", manifestFileId);
-            manifestManager.delete(manifestFileId);
-        }
-        catch (Exception e) {
-            // Just log any exception here. This will eventually get cleaned up by
-            // a cleaner job.
-            log.warn("Could not delete import file by id: {}", manifestFileId, e);
         }
     }
 
@@ -316,15 +281,9 @@ public class Importer {
      * @throws ImporterException
      */
     @Transactional
-    protected File extractFromService(String storedFileId) throws ManifestServiceException, ImporterException {
-        ManifestFile manifest = manifestManager.getFile(storedFileId);
-        if (manifest == null) {
-            throw new ImporterException("The requested manifest was not found: " + storedFileId);
-        }
-
-        File unpacked = unpackExportFile(storedFileId, manifest.getInputStream());
-        deleteStoredManifest(storedFileId);
-        return unpacked;
+    protected File extractFromService(ManifestFile export)
+        throws ManifestServiceException, ImporterException {
+        return unpackExportFile(export.getId(), export.getInputStream());
     }
 
     /**

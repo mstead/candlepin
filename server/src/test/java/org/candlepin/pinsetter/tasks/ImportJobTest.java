@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 
+import org.candlepin.controller.ManifestManager;
 import org.candlepin.model.ImportRecord;
 import org.candlepin.model.Owner;
 import org.candlepin.model.OwnerCurator;
@@ -47,10 +48,9 @@ import org.quartz.JobExecutionException;
 @RunWith(MockitoJUnitRunner.class)
 public class ImportJobTest {
 
-    @Mock private Importer importer;
     @Mock private OwnerCurator ownerCurator;
     @Mock private JobExecutionContext ctx;
-    @Mock private ManifestFileService manifestService;
+    @Mock private ManifestManager manifestManager;
 
     private ImportJob job;
     private Owner owner;
@@ -58,7 +58,7 @@ public class ImportJobTest {
     @Before
     public void setup() {
         owner = new Owner("my-test-owner");
-        job = new ImportJob(importer, ownerCurator, manifestService);
+        job = new ImportJob(ownerCurator, manifestManager);
     }
 
     @Test
@@ -92,7 +92,7 @@ public class ImportJobTest {
         JobDetail detail = job.scheduleImport(owner, archiveFilePath, uploadedFileName, co);
         when(ctx.getMergedJobDataMap()).thenReturn(detail.getJobDataMap());
         when(ownerCurator.lookupByKey(eq(owner.getKey()))).thenReturn(owner);
-        when(importer.loadStoredExport(eq(owner), any(String.class),
+        when(manifestManager.importStoredManifest(eq(owner), any(String.class),
             any(ConflictOverrides.class), eq(uploadedFileName))).thenReturn(record);
         job.execute(ctx);
 
@@ -109,7 +109,7 @@ public class ImportJobTest {
         JobDetail detail = job.scheduleImport(owner, archiveFilePath, uploadedFileName, co);
         when(ctx.getMergedJobDataMap()).thenReturn(detail.getJobDataMap());
         when(ownerCurator.lookupByKey(eq(owner.getKey()))).thenReturn(owner);
-        when(importer.loadStoredExport(eq(owner), any(String.class), any(ConflictOverrides.class),
+        when(manifestManager.importStoredManifest(eq(owner), any(String.class), any(ConflictOverrides.class),
             eq(uploadedFileName))).thenThrow(new ImporterException(expectedMessage));
 
         try {
