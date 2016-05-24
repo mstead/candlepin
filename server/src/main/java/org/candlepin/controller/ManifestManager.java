@@ -225,24 +225,13 @@ public class ManifestManager {
     }
 
     /**
-     * Gets a manifest matching the specified id. A files id should be
-     * a unique identifier such as a database entity ID, or a file path.
-     *
-     * @param id the id of the target manifest.
-     * @return a {@link ManifestFile} matching the id, null otherwise.
-     */
-    private ManifestFile getFile(String id) throws ManifestServiceException {
-        return manifestFileService.get(id);
-    }
-
-    /**
      * Deletes a manifest matching the specified id.
      *
      * @param id the id of the target manifest file.
      * @return true if the record was deleted, false otherwise.
      */
     @Transactional
-    private boolean delete(String id) throws ManifestServiceException {
+    protected boolean delete(String id) throws ManifestServiceException {
         return manifestFileService.delete(id);
     }
 
@@ -253,7 +242,7 @@ public class ManifestManager {
      * @return the id of the stored manifest file.
      */
     @Transactional
-    private ManifestFile storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
+    protected ManifestFile storeImport(File importFile, Owner targetOwner) throws ManifestServiceException {
         // Store the manifest record, and then store the file.
         // TODO: Check to see if we are allowed to do this based on the principal.
         return storeFile(importFile, ManifestRecordType.IMPORT, targetOwner.getKey());
@@ -274,6 +263,17 @@ public class ManifestManager {
         int count = manifestFileService.delete(ManifestRecordType.EXPORT, distributor.getUuid());
         log.debug("Deleted {} existing export files for distributor {}.", count, distributor.getUuid());
         return storeFile(exportFile, ManifestRecordType.EXPORT, distributor.getUuid());
+    }
+
+    /**
+     * Gets a manifest matching the specified id. A files id should be
+     * a unique identifier such as a database entity ID, or a file path.
+     *
+     * @param id the id of the target manifest.
+     * @return a {@link ManifestFile} matching the id, null otherwise.
+     */
+    private ManifestFile getFile(String id) throws ManifestServiceException {
+        return manifestFileService.get(id);
     }
 
     private ManifestFile storeFile(File targetFile, ManifestRecordType type, String targetId)
