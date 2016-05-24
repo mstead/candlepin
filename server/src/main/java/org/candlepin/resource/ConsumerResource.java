@@ -1757,69 +1757,71 @@ public class ConsumerResource {
         }
     }
 
+    /**
+     * Retrieves a compressed file representation of a Consumer (manifest).
+     *
+     * @deprecated use exportDataAsync
+     * @param response
+     * @param consumerUuid
+     * @param cdnLabel
+     * @param webAppPrefix
+     * @param apiUrl
+     * @return
+     */
+    @Deprecated
     @ApiOperation(notes = "Retrieves a Compressed File representation of a Consumer", value = "exportData")
     @ApiResponses({ @ApiResponse(code = 403, message = ""), @ApiResponse(code = 500, message = ""),
         @ApiResponse(code = 404, message = "") })
+    @Produces("application/zip")
     @GET
     @Path("{consumer_uuid}/export")
-    public Response exportData(
+    public File exportData(
         @Context HttpServletResponse response,
         @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
         @QueryParam("cdn_label") String cdnLabel,
         @QueryParam("webapp_prefix") String webAppPrefix,
-        @QueryParam("api_url") String apiUrl,
-        @QueryParam("async") @DefaultValue("false") boolean async) {
+        @QueryParam("api_url") String apiUrl) {
 
-        Consumer consumer = consumerCurator.verifyAndLookupConsumer(consumerUuid);
-        if (consumer.getType() == null ||
-            !consumer.getType().isManifest()) {
-            throw new ForbiddenException(
-                i18n.tr(
-                    "Unit {0} cannot be exported. " +
-                    "A manifest cannot be made for units of type ''{1}''.",
-                    consumerUuid, consumer.getType().getLabel()));
-        }
-
-        if (!StringUtils.isBlank(cdnLabel) &&
-            cdnCurator.lookupByLabel(cdnLabel) == null) {
-            throw new ForbiddenException(
-                i18n.tr("A CDN with label {0} does not exist on this system.", cdnLabel));
-        }
-
-        poolManager.regenerateDirtyEntitlements(entitlementCurator.listByConsumer(consumer));
-
-        if(async) {
-            JobDetail exportJobDetail =
-                manifestManager.generateManifestAsync(consumer, cdnLabel, webAppPrefix, apiUrl);
-            return Response.status(Response.Status.OK)
-                    .type(MediaType.APPLICATION_JSON).entity(exportJobDetail).build();
-        }
-
-        FileInputStream stream = null;
+        Consumer consumer = verifyExportParamsAndRefreshEntitlements(consumerUuid, cdnLabel);
         try {
             File archive = manifestManager.generateManifest(consumer, cdnLabel, webAppPrefix, apiUrl);
-            stream = new FileInputStream(archive);
+            response.addHeader("Content-Disposition", "attachment; filename=" +
+                    archive.getName());
+
             sink.queueEvent(eventFactory.exportCreated(consumer));
-            return Response.ok(stream, MediaType.APPLICATION_OCTET_STREAM)
-                    .header("Content-Disposition", "attachment; filename=" + archive.getName()).build();
-        }
-        catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+            return archive;
         }
         catch (ExportCreationException e) {
-            throw new IseException(i18n.tr("Unable to create export archive"),
-                e);
+            throw new IseException(i18n.tr("Unable to create export archive"), e);
         }
+    }
+
+    @ApiOperation(notes = "Initiates an async generation of a Compressed File representation of a Consumer.",
+        value = "jobData")
+    @ApiResponses({ @ApiResponse(code = 403, message = ""), @ApiResponse(code = 500, message = ""),
+        @ApiResponse(code = 404, message = "") })
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("{consumer_uuid}/export/async")
+    public JobDetail exportDataAsync(
+        @Context HttpServletResponse response,
+        @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
+        @QueryParam("cdn_label") String cdnLabel,
+        @QueryParam("webapp_prefix") String webAppPrefix,
+        @QueryParam("api_url") String apiUrl) {
+        Consumer consumer = verifyExportParamsAndRefreshEntitlements(consumerUuid, cdnLabel);
+        return manifestManager.generateManifestAsync(consumer, cdnLabel, webAppPrefix, apiUrl);
     }
 
     @GET
     @Produces("application/zip")
-    @Path("{consumer_uuid}/export/{export_id}")
+    @Path("{consumer_uuid}/export/download")
     public void downloadExistingExport(
         @Context HttpServletResponse response,
         @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
-        @PathParam("export_id") String exportId) {
-
+        @QueryParam("export_id") String exportId) {
+        // If an exception happens during a download request, always report a
+        // NotFound exception.
         NotFoundException toThrow = new NotFoundException(
             i18n.tr("The specified file does not exist, or can not be accessed."));
 
@@ -1833,16 +1835,19 @@ public class ConsumerResource {
         Exception ex = null;
         try {
             // The response for this request is formulated a little different for this
-            // file download. In order to stream the results from the DB to the client
-            // we write the file contents directly to the response output stream.
+            // file download. In some cases, such as for a hibernate DB file service, we must
+            // stream the results from the DB to the client by directly writing to the
+            // response output stream.
             //
             // NOTE: Passing the database input stream to the response builder seems
             //       like it would be a correct approach here, but large object streaming
             //       can only be done inside a single transaction, so we have to stream it
             //       manually.
+            // TODO See if there is a way to get RestEasy to do this so we don't have to.
             manifestManager.readStoredExportToResponse(exportId, consumer, response);
 
-            // On successful manifest read, delete the record.
+            // On successful manifest read, delete the record. The manifest can only be
+            // downloaded once and must then be regenerated.
             manifestManager.deleteStoredManifest(exportId);
         }
         catch (Exception e) {
@@ -2080,6 +2085,27 @@ public class ConsumerResource {
         Map<String, String> calculatedAttributes =
             calculatedAttributesUtil.buildCalculatedAttributes(ent.getPool(), null);
         ent.getPool().setCalculatedAttributes(calculatedAttributes);
+    }
+
+    private Consumer verifyExportParamsAndRefreshEntitlements(String consumerUuid, String cdnLabel) {
+        Consumer consumer = consumerCurator.verifyAndLookupConsumer(consumerUuid);
+        if (consumer.getType() == null ||
+            !consumer.getType().isManifest()) {
+            throw new ForbiddenException(
+                i18n.tr(
+                    "Unit {0} cannot be exported. " +
+                    "A manifest cannot be made for units of type ''{1}''.",
+                    consumerUuid, consumer.getType().getLabel()));
+        }
+
+        if (!StringUtils.isBlank(cdnLabel) &&
+            cdnCurator.lookupByLabel(cdnLabel) == null) {
+            throw new ForbiddenException(
+                i18n.tr("A CDN with label {0} does not exist on this system.", cdnLabel));
+        }
+
+        poolManager.regenerateDirtyEntitlements(entitlementCurator.listByConsumer(consumer));
+        return consumer;
     }
 
 }

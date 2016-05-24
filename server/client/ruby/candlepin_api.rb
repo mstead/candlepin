@@ -483,28 +483,28 @@ class Candlepin
   def export_consumer(dest_dir, params={}, uuid=nil)
     uuid = @uuid unless uuid
     path = "/consumers/#{uuid}/export"
+    do_consumer_export(path, dest_dir, params)
+  end
+
+  def export_consumer_async(uuid=nil, params={})
+    uuid = @uuid unless uuid
+    path = "/consumers/#{uuid}/export/async"
+    do_consumer_export(path, nil, params)
+  end
+
+  def do_consumer_export(path, dest_dir, params)
     path += "?" if params
     path += "cdn_label=#{params[:cdn_label]}&" if params[:cdn_label]
     path += "webapp_prefix=#{params[:webapp_prefix]}&" if params[:webapp_prefix]
     path += "api_url=#{params[:api_url]}&" if params[:api_url]
 
     begin
-      get_file(path, dest_dir)
-    rescue Exception => e
-      puts e.response
-    end
-  end
-
-  def export_consumer_async(uuid=nil, params={})
-    uuid = @uuid unless uuid
-    path = "/consumers/#{uuid}/export"
-    path += "?async=true&"
-    path += "cdn_label=#{params[:cdn_label]}&" if params[:cdn_label]
-    path += "webapp_prefix=#{params[:webapp_prefix]}&" if params[:webapp_prefix]
-    path += "api_url=#{params[:api_url]}&" if params[:api_url]
-
-    begin
-      get(path)
+      if dest_dir.nil?
+        # support async call
+        get(path)
+      else
+        get_file(path, dest_dir)
+      end
     rescue Exception => e
       puts e.response
     end
