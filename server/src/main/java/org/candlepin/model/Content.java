@@ -92,7 +92,7 @@ public class Content extends AbstractHibernateObject implements SharedEntity, Cl
         name = "cp2_owner_content",
         joinColumns = {@JoinColumn(name = "content_uuid", insertable = true, updatable = true)},
         inverseJoinColumns = {@JoinColumn(name = "owner_id")})
-    @LazyCollection(LazyCollectionOption.FALSE)
+    @LazyCollection(LazyCollectionOption.EXTRA)
     @XmlTransient
     private Set<Owner> owners;
 
@@ -297,7 +297,7 @@ public class Content extends AbstractHibernateObject implements SharedEntity, Cl
         // collection.
 
         if (this.getOwners() != null) {
-            copy.setOwners(this.getOwners());
+            copy.setOwners(null);
         }
 
         if (this.getModifiedProductIds() != null) {

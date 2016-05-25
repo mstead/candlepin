@@ -173,8 +173,8 @@ public class ProductManager {
 
                 List<Owner> owners = Arrays.asList(owner);
 
-                alt.addOwner(owner);
-                this.productCurator.merge(alt);
+                // alt.addOwner(owner);
+                // this.productCurator.merge(alt);
 
                 entity = this.productCurator.updateOwnerProductReferences(existing, alt, owners);
 
@@ -216,8 +216,8 @@ public class ProductManager {
                 copy.setUuid(null);
 
                 // Set the owner so when we create it, we don't end up with duplicate keys...
-                existing.removeOwner(owner);
-                copy.setOwners(owners);
+                // existing.removeOwner(owner);
+                copy.setOwners(null);
 
                 this.productCurator.merge(existing);
                 copy = this.productCurator.create(copy);

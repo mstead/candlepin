@@ -177,8 +177,8 @@ public class ContentManager {
             if (alt.equals(entity)) {
                 log.debug("Merging content with existing version: {} => {}", entity, alt);
 
-                alt.addOwner(owner);
-                this.contentCurator.merge(alt);
+                // alt.addOwner(owner);
+                // this.contentCurator.merge(alt);
 
                 // Make sure every product using the old version/entity are updated to use the new one
                 List<Product> affectedProducts = this.productCurator.getProductsWithContent(
@@ -242,8 +242,8 @@ public class ContentManager {
                 );
 
                 // Set the owner so when we create it, we don't end up with duplicate keys...
-                existing.removeOwner(owner);
-                copy.setOwners(owners);
+                // existing.removeOwner(owner);
+                copy.setOwners(null);
 
                 this.contentCurator.merge(existing);
                 copy = this.contentCurator.create(copy);
