@@ -19,6 +19,14 @@ import org.xnap.commons.i18n.I18n;
 
 import com.google.inject.Inject;
 
+/**
+ * A job that generates a compressed file representation of a Consumer. Once the job
+ * has completed, its result data will contain the details of the newly created file
+ * that can be used to download the file.
+ *
+ * @see ExportResult
+ *
+ */
 public class ExportJob extends UniqueByEntityJob {
 
     protected static final String CDN_LABEL = "cdn_label";
@@ -73,6 +81,15 @@ public class ExportJob extends UniqueByEntityJob {
         return consumer;
     }
 
+    /**
+     * Schedules the generation of a consumer export. This job starts immediately.
+     *
+     * @param consumer the target consumer
+     * @param cdnLabel
+     * @param webAppPrefix
+     * @param apiUrl
+     * @return a JobDetail representing the job to be started.
+     */
     public static JobDetail scheduleExport(Consumer consumer, String cdnLabel, String webAppPrefix,
         String apiUrl) {
         JobDataMap map = new JobDataMap();

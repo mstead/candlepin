@@ -4,7 +4,6 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -12,6 +11,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.candlepin.common.exceptions.BadRequestException;
+import org.candlepin.common.exceptions.IseException;
 import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.guice.PrincipalProvider;
 import org.candlepin.model.Consumer;
@@ -21,6 +21,7 @@ import org.candlepin.model.ImportRecord;
 import org.candlepin.model.ManifestRecord.ManifestRecordType;
 import org.candlepin.pinsetter.tasks.ExportJob;
 import org.candlepin.pinsetter.tasks.ImportJob;
+import org.candlepin.pinsetter.tasks.ManifestCleanerJob;
 import org.candlepin.model.Owner;
 import org.candlepin.sync.ConflictOverrides;
 import org.candlepin.sync.ExportCreationException;
@@ -33,10 +34,10 @@ import org.candlepin.sync.ManifestFileService;
 import org.candlepin.sync.ManifestServiceException;
 import org.candlepin.sync.file.ManifestFile;
 import org.candlepin.util.Util;
-import org.hibernate.tool.hbm2x.ExporterException;
 import org.quartz.JobDetail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xnap.commons.i18n.I18n;
 
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
@@ -51,11 +52,12 @@ public class ManifestManager {
     private PoolManager poolManager;
     private ConsumerCurator consumerCurator;
     private PrincipalProvider principalProvider;
+    private I18n i18n;
 
     @Inject
     public ManifestManager(ManifestFileService manifestFileService, Exporter exporter, Importer importer,
         ConsumerCurator consumerCurator, EntitlementCurator entitlementCurator, PoolManager poolManager,
-        PrincipalProvider principalProvider) {
+        PrincipalProvider principalProvider, I18n i18n) {
         this.manifestFileService = manifestFileService;
         this.exporter = exporter;
         this.importer = importer;
@@ -63,6 +65,7 @@ public class ManifestManager {
         this.entitlementCurator = entitlementCurator;
         this.poolManager = poolManager;
         this.principalProvider = principalProvider;
+        this.i18n = i18n;
     }
 
     public JobDetail generateManifestAsync(Consumer consumer, String cdnLabel, String webAppPrefix,
@@ -127,8 +130,22 @@ public class ManifestManager {
         return manifestFileService.deleteExpired(Util.addMinutesToDt(maxAgeInMinutes * -1));
     }
 
+    /**
+     * Write the stored manifest file to the specified response output stream and update
+     * the appropriate response data.
+     *
+     * @param exportId the id of the manifest file to find.
+     * @param exportedConsumer the consumer the export was generated for.
+     * @param response the response to write the file to.
+     * @throws ManifestServiceException if there was an issue getting the file from the service
+     * @throws NotFoundException if the manifest file is not found
+     * @throws BadRequestException if the manifests target consumer does not match the specified
+     *                             consumer.
+     * @throws IseException if there was an issue writing the file to the response.
+     */
     @Transactional
-    public void readStoredExportToResponse(String exportId, Consumer exportedConsumer, HttpServletResponse response) {
+    public void writeStoredExportToResponse(String exportId, Consumer exportedConsumer,
+        HttpServletResponse response) throws ManifestServiceException {
         // In order to stream the results from the DB to the client
         // we write the file contents directly to the response output stream.
         //
@@ -141,12 +158,14 @@ public class ManifestManager {
         try {
             ManifestFile manifest = getFile(exportId);
             if (manifest == null) {
-                throw new NotFoundException("Unable to find specified manifest by id: " + exportId);
+                throw new NotFoundException(
+                    i18n.tr("Unable to find specified manifest by id: {0}", exportId));
             }
 
             if (!exportedConsumer.getUuid().equals(manifest.getTargetId())) {
-                throw new BadRequestException("Could not validate export against specifed consumer: " +
-                    exportedConsumer.getUuid());
+                throw new BadRequestException(
+                    i18n.tr("Could not validate export against specifed consumer: {0}",
+                        exportedConsumer.getUuid()));
             }
 
             response.setContentType("application/zip");
@@ -163,14 +182,22 @@ public class ManifestManager {
             }
             output.flush();
         }
-        catch (ManifestServiceException e) {
-            throw new ExporterException("Unable to find manifest by id: " + exportId, e);
-        }
         catch (IOException e) {
-            throw new ExporterException("Unable to get manifest: " + exportId, e);
+            throw new IseException(i18n.tr("Unable to get manifest: {0}", exportId), e);
         }
     }
 
+    /**
+     * Generates a manifest for the specifed consumer and stores the resulting file via the
+     * {@link ManifestFileService}.
+     *
+     * @param consumer the target consumer.
+     * @param cdnKey
+     * @param webAppPrefix
+     * @param apiUrl
+     * @return an {@link ExportResult} containing the details of the stored file.
+     * @throws ExportCreationException if there are any issues generating the manifest.
+     */
     public ExportResult generateAndStoreExport(Consumer consumer, String cdnKey, String webAppPrefix,
         String apiUrl) throws ExportCreationException {
         File export = null;
@@ -198,7 +225,9 @@ public class ManifestManager {
     }
 
     /**
-     * Deletes the manifest file stored by the {@link ManifestFileService}.
+     * Deletes the manifest file stored by the {@link ManifestFileService}. If there was
+     * an issue deleting the manifest, the exception is just logged. The file will eventually
+     * be deleted by the {@link ManifestCleanerJob}.
      *
      * @param manifestFileId the ID of the manifest to be deleted.
      */

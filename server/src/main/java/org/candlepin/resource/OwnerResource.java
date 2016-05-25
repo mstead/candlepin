@@ -1184,7 +1184,7 @@ public class OwnerResource {
      * This will bring in any products, content, and subscriptions that were assigned to
      * the distributor who generated the manifest.
      *
-     * @deprecated use {@link ManifestResource}
+     * @deprecated use /owners/:owner_key/imports/async
      *
      * @return a ImportRecord object if the import is successful.
      * @httpcode 400

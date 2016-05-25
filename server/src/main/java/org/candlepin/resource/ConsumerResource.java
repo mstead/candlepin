@@ -97,7 +97,7 @@ import org.candlepin.service.IdentityCertServiceAdapter;
 import org.candlepin.service.SubscriptionServiceAdapter;
 import org.candlepin.service.UserServiceAdapter;
 import org.candlepin.sync.ExportCreationException;
-import org.candlepin.sync.Exporter;
+import org.candlepin.sync.ManifestServiceException;
 import org.candlepin.util.Util;
 
 import com.google.inject.Inject;
@@ -115,8 +115,6 @@ import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -1760,7 +1758,7 @@ public class ConsumerResource {
     /**
      * Retrieves a compressed file representation of a Consumer (manifest).
      *
-     * @deprecated use exportDataAsync
+     * @deprecated use GET /consumers/:consumer_uuid/export/async
      * @param response
      * @param consumerUuid
      * @param cdnLabel
@@ -1769,7 +1767,10 @@ public class ConsumerResource {
      * @return
      */
     @Deprecated
-    @ApiOperation(notes = "Retrieves a Compressed File representation of a Consumer", value = "exportData")
+    @ApiOperation(
+        notes = "Retrieves a Compressed File representation of a Consumer (manifest).",
+        value = "Consumer Export (manifest)",
+        response = File.class)
     @ApiResponses({ @ApiResponse(code = 403, message = ""), @ApiResponse(code = 500, message = ""),
         @ApiResponse(code = 404, message = "") })
     @Produces("application/zip")
@@ -1796,8 +1797,24 @@ public class ConsumerResource {
         }
     }
 
-    @ApiOperation(notes = "Initiates an async generation of a Compressed File representation of a Consumer.",
-        value = "jobData")
+    /**
+     * Initiates an async generation of a compressed file representation of a {@link Consumer} (manifest).
+     * The response will contain the id of the job from which its result data will contain the href to
+     * download the generated file.
+     *
+     * @param response
+     * @param consumerUuid the uuid of the target consumer.
+     * @param cdnLabel
+     * @param webAppPrefix
+     * @param apiUrl
+     * @return
+     */
+    @ApiOperation(
+        notes = "Initiates an async generation of a Compressed File representation of a Consumer " +
+                "(manifest). The response will contain the id of the job from which its result data " +
+                " will contain the href to download the generated file.",
+        value = "Async Consumer Export (manifest)",
+        response = JobDetail.class)
     @ApiResponses({ @ApiResponse(code = 403, message = ""), @ApiResponse(code = 500, message = ""),
         @ApiResponse(code = 404, message = "") })
     @GET
@@ -1813,6 +1830,20 @@ public class ConsumerResource {
         return manifestManager.generateManifestAsync(consumer, cdnLabel, webAppPrefix, apiUrl);
     }
 
+    /**
+     * Downloads an asynchronously generated consumer export file (manifest). If the file
+     * was successfully downloaded, it will be deleted.
+     *
+     * @param response
+     * @param consumerUuid the UUID of the target consumer.
+     * @param exportId the id of the stored export.
+     */
+    @ApiOperation(
+        notes = "Downloads an asynchronously generated consumer export file (manifest).",
+        value = "Async Consumer Export (manifest) Download",
+        response = File.class)
+    @ApiResponses({ @ApiResponse(code = 403, message = ""), @ApiResponse(code = 500, message = ""),
+        @ApiResponse(code = 404, message = "") })
     @GET
     @Produces("application/zip")
     @Path("{consumer_uuid}/export/download")
@@ -1820,6 +1851,12 @@ public class ConsumerResource {
         @Context HttpServletResponse response,
         @PathParam("consumer_uuid") @Verify(Consumer.class) String consumerUuid,
         @QueryParam("export_id") String exportId) {
+
+        // *******************************************************************************
+        // NOTE: If changing the path or parameters of this endpoint, be sure to update
+        // the HREF generation in ExportResult.
+        // *******************************************************************************
+
         // If an exception happens during a download request, always report a
         // NotFound exception.
         NotFoundException toThrow = new NotFoundException(
@@ -1844,17 +1881,21 @@ public class ConsumerResource {
             //       can only be done inside a single transaction, so we have to stream it
             //       manually.
             // TODO See if there is a way to get RestEasy to do this so we don't have to.
-            manifestManager.readStoredExportToResponse(exportId, consumer, response);
+            manifestManager.writeStoredExportToResponse(exportId, consumer, response);
 
             // On successful manifest read, delete the record. The manifest can only be
             // downloaded once and must then be regenerated.
             manifestManager.deleteStoredManifest(exportId);
+        }
+        catch (ManifestServiceException e) {
+            ex = e;
         }
         catch (Exception e) {
             ex = e;
         }
 
         if (ex != null) {
+            // FIXME This is wacky. Not sure why I did this!!!!!
             log.error("Manifest download failed.", ex);
             // Reset the response data so that a json response can be returned,
             // by RestEasy.
